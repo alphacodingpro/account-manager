@@ -26,6 +26,7 @@
 
 ## Milestone 4 — Reporting
 
+- [x] Live dashboard balances, monthly trend and recent transactions
 - General Ledger, Trial Balance, Profit & Loss, Balance Sheet and Cash Flow
 - Branch comparison, dashboard drill-down and CSV/Excel export
 

@@ -49,6 +49,44 @@ type Account = {
   active: boolean;
   system_account: boolean;
 };
+type DashboardSummary = {
+  cash_balance: number;
+  receivables: number;
+  payables: number;
+  income: number;
+  expenses: number;
+  net_profit: number;
+  invoice_count: number;
+  overdue_count: number;
+  sales_total: number;
+  recent_transactions: Array<{
+    id: string;
+    entry_date: string;
+    reference: string | null;
+    description: string | null;
+    status: string;
+    amount: number;
+  }>;
+  monthly_trend: Array<{
+    month_start: string;
+    label: string;
+    income: number;
+    expenses: number;
+  }>;
+};
+const emptySummary: DashboardSummary = {
+  cash_balance: 0,
+  receivables: 0,
+  payables: 0,
+  income: 0,
+  expenses: 0,
+  net_profit: 0,
+  invoice_count: 0,
+  overdue_count: 0,
+  sales_total: 0,
+  recent_transactions: [],
+  monthly_trend: [],
+};
 type ViewName =
   | "Overview"
   | "Accounting"
@@ -220,42 +258,43 @@ const Metric = ({
 function Overview({
   branches,
   accounts,
+  summary,
 }: {
   branches: Branch[];
   accounts: Account[];
+  summary: DashboardSummary;
 }) {
-  const grouped = useMemo(
-    () =>
-      accounts.reduce<Record<string, number>>(
-        (a, v) => ((a[v.type] = (a[v.type] ?? 0) + 1), a),
-        {},
-      ),
-    [accounts],
+  const maxTrend = Math.max(
+    1,
+    ...summary.monthly_trend.flatMap((m) => [
+      Number(m.income),
+      Number(m.expenses),
+    ]),
   );
   return (
     <>
       <div className="metrics">
         <Metric
           label="Cash & bank"
-          value={money.format(0)}
-          detail="No posted transactions"
+          value={money.format(summary.cash_balance)}
+          detail={`${branches.length} active branch${branches.length === 1 ? "" : "es"}`}
         />
         <Metric
           label="Receivables"
-          value={money.format(0)}
-          detail="No outstanding invoices"
+          value={money.format(summary.receivables)}
+          detail={`${summary.overdue_count} overdue invoice${summary.overdue_count === 1 ? "" : "s"}`}
           tone="green"
         />
         <Metric
           label="Payables"
-          value={money.format(0)}
-          detail="No outstanding bills"
+          value={money.format(summary.payables)}
+          detail="Posted supplier balance"
           tone="orange"
         />
         <Metric
           label="Net profit"
-          value={money.format(0)}
-          detail="Current financial year"
+          value={money.format(summary.net_profit)}
+          detail={`${money.format(summary.income)} income`}
           tone="purple"
         />
       </div>
@@ -263,57 +302,95 @@ function Overview({
         <article className="panel chart-panel">
           <div className="panel-head">
             <div>
-              <h3>Accounting setup</h3>
-              <p>Live data from your active company</p>
+              <h3>Income vs expenses</h3>
+              <p>Last six months · posted entries</p>
             </div>
+            <span className="legend">
+              <i />
+              Income <i className="expense" />
+              Expenses
+            </span>
           </div>
-          <div className="setup-grid">
-            <div>
-              <strong>{accounts.length}</strong>
-              <span>Ledger accounts</span>
-            </div>
-            <div>
-              <strong>{branches.length}</strong>
-              <span>Active branches</span>
-            </div>
-            <div>
-              <strong>{grouped.asset ?? 0}</strong>
-              <span>Asset accounts</span>
-            </div>
-            <div>
-              <strong>{grouped.expense ?? 0}</strong>
-              <span>Expense accounts</span>
-            </div>
+          <div className="live-chart">
+            {summary.monthly_trend.map((m) => (
+              <div className="live-bars" key={m.month_start}>
+                <div>
+                  <span
+                    className="income-bar"
+                    style={{
+                      height: `${Math.max(2, (Number(m.income) / maxTrend) * 100)}%`,
+                    }}
+                  />
+                  <span
+                    className="expense-bar"
+                    style={{
+                      height: `${Math.max(2, (Number(m.expenses) / maxTrend) * 100)}%`,
+                    }}
+                  />
+                </div>
+                <small>{m.label}</small>
+              </div>
+            ))}
           </div>
         </article>
         <article className="panel">
           <div className="panel-head">
             <div>
-              <h3>Quick actions</h3>
-              <p>Common daily tasks</p>
+              <h3>Business snapshot</h3>
+              <p>Live company totals</p>
             </div>
           </div>
-          <div className="actions">
-            {[
-              ["Create invoice", FileText],
-              ["Record expense", ReceiptText],
-              ["Receive payment", WalletCards],
-              ["Add product", Package],
-            ].map(([n, I]) => (
-              <button key={n as string} disabled>
-                {<I size={20} />}
-                <span>{n as string}</span>
-                <small>Coming next</small>
-              </button>
-            ))}
+          <div className="snapshot">
+            <div>
+              <span>Total sales</span>
+              <b>{money.format(summary.sales_total)}</b>
+            </div>
+            <div>
+              <span>Posted invoices</span>
+              <b>{summary.invoice_count}</b>
+            </div>
+            <div>
+              <span>Expenses</span>
+              <b>{money.format(summary.expenses)}</b>
+            </div>
+            <div>
+              <span>Ledger accounts</span>
+              <b>{accounts.length}</b>
+            </div>
           </div>
         </article>
-        <article className="panel wide empty-state">
-          <FileText />
-          <h3>No transactions yet</h3>
-          <p>
-            Your posted invoices, expenses and journal entries will appear here.
-          </p>
+        <article className="panel wide">
+          <div className="panel-head">
+            <div>
+              <h3>Recent transactions</h3>
+              <p>Latest posted journal activity</p>
+            </div>
+          </div>
+          {summary.recent_transactions.length === 0 ? (
+            <div className="mini-empty">
+              <FileText />
+              <p>No posted transactions yet.</p>
+            </div>
+          ) : (
+            <div className="dashboard-transactions">
+              <div className="dashboard-row data-heading">
+                <span>Date</span>
+                <span>Reference</span>
+                <span>Description</span>
+                <span>Amount</span>
+                <span>Status</span>
+              </div>
+              {summary.recent_transactions.map((t) => (
+                <div className="dashboard-row" key={t.id}>
+                  <span>{t.entry_date}</span>
+                  <span className="code">{t.reference || "—"}</span>
+                  <span>{t.description || "Journal entry"}</span>
+                  <b>{money.format(Number(t.amount))}</b>
+                  <span className="status">{t.status}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </article>
       </div>
     </>
@@ -507,6 +584,7 @@ function Dashboard({
   const [companyId, setCompanyId] = useState("");
   const [branches, setBranches] = useState<Branch[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [summary, setSummary] = useState<DashboardSummary>(emptySummary);
   const [loading, setLoading] = useState(!demo);
   const [error, setError] = useState("");
   const company = companies.find((c) => c.id === companyId);
@@ -552,7 +630,7 @@ function Dashboard({
   }
   async function loadCompanyData() {
     if (!companyId || demo) return;
-    const [b, a] = await Promise.all([
+    const [b, a, s] = await Promise.all([
       supabase
         .from("branches")
         .select("id,code,name,city,active")
@@ -563,14 +641,19 @@ function Dashboard({
         .select("id,code,name,type,active,system_account")
         .eq("company_id", companyId)
         .order("code"),
+      supabase.rpc("get_dashboard_summary", { target_company: companyId }),
     ]);
-    if (b.error || a.error)
+    if (b.error || a.error || s.error)
       setError(
-        b.error?.message || a.error?.message || "Unable to load company",
+        b.error?.message ||
+          a.error?.message ||
+          s.error?.message ||
+          "Unable to load company",
       );
     else {
       setBranches(b.data ?? []);
       setAccounts((a.data ?? []) as Account[]);
+      setSummary((s.data as DashboardSummary) ?? emptySummary);
     }
   }
   useEffect(() => {
@@ -579,6 +662,9 @@ function Dashboard({
   useEffect(() => {
     loadCompanyData();
   }, [companyId]);
+  useEffect(() => {
+    if (view === "Overview") loadCompanyData();
+  }, [view]);
   if (loading)
     return (
       <main className="loading">
@@ -684,7 +770,11 @@ function Dashboard({
           </div>
           {error && <p className="alert">{error}</p>}
           {view === "Overview" && (
-            <Overview branches={branches} accounts={accounts} />
+            <Overview
+              branches={branches}
+              accounts={accounts}
+              summary={summary}
+            />
           )}{" "}
           {view === "Accounting" && (
             <AccountingView
