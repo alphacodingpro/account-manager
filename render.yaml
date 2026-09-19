@@ -19,7 +19,6 @@ services:
   - type: web
     name: cloudledger-pk-web
     runtime: static
-    plan: free
     rootDir: .
     buildCommand: npm install && npm run build -w @cloudledger/web
     staticPublishPath: apps/web/dist
