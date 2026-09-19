@@ -12,13 +12,16 @@
 
 ## Milestone 2 — Sales and purchases
 
-- Customers, suppliers, quotations and orders
-- GST invoices, receipts, bills, payments, credit/debit notes
+- [x] Customers and GST sales invoices
+- [x] Automatic receivable, sales and output-GST journal posting
+- [ ] Suppliers, quotations and orders
+- [ ] Receipts, bills, payments, credit/debit notes
 - Receivable/payable aging and PDF documents
 
 ## Milestone 3 — Inventory
 
-- Products, services, units, warehouses and branch stock
+- [x] Products, services, prices, units and reorder levels
+- [ ] Warehouses and branch stock
 - Average-cost valuation, transfers, adjustments and reorder alerts
 
 ## Milestone 4 — Reporting

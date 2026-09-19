@@ -1,25 +1,440 @@
-import { useEffect, useMemo, useState } from 'react';
-import { BookOpen, CheckCircle2, Plus, Trash2, X } from 'lucide-react';
-import { supabase } from './lib/supabase';
+import { useEffect, useMemo, useState } from "react";
+import { BookOpen, CheckCircle2, Plus, Trash2, X } from "lucide-react";
+import { supabase } from "./lib/supabase";
 
-type Account={id:string;code:string;name:string;type:'asset'|'liability'|'equity'|'income'|'expense';active:boolean;system_account:boolean};
-type Branch={id:string;code:string;name:string;city:string|null;active:boolean};
-type Entry={id:string;entry_number:number;entry_date:string;reference:string|null;description:string|null;status:string;journal_lines:{debit:number;credit:number}[]};
-type Line={accountId:string;debit:string;credit:string};
-const blankLine=():Line=>({accountId:'',debit:'',credit:''});
-const amount=(value:string)=>Number(value||0);
-const pkr=new Intl.NumberFormat('en-PK',{style:'currency',currency:'PKR'});
+type Account = {
+  id: string;
+  code: string;
+  name: string;
+  type: "asset" | "liability" | "equity" | "income" | "expense";
+  active: boolean;
+  system_account: boolean;
+};
+type Branch = {
+  id: string;
+  code: string;
+  name: string;
+  city: string | null;
+  active: boolean;
+};
+type Entry = {
+  id: string;
+  entry_number: number;
+  entry_date: string;
+  reference: string | null;
+  description: string | null;
+  status: string;
+  journal_lines: { debit: number; credit: number }[];
+};
+type Line = { accountId: string; debit: string; credit: string };
+const blankLine = (): Line => ({ accountId: "", debit: "", credit: "" });
+const amount = (value: string) => Number(value || 0);
+const pkr = new Intl.NumberFormat("en-PK", {
+  style: "currency",
+  currency: "PKR",
+});
 
-export default function AccountingView({companyId,branches,accounts,onAccountsChanged}:{companyId:string;branches:Branch[];accounts:Account[];onAccountsChanged:()=>void}){
-  const[showAccount,setShowAccount]=useState(false);const[showJournal,setShowJournal]=useState(false);const[entries,setEntries]=useState<Entry[]>([]);const[message,setMessage]=useState('');
-  const[code,setCode]=useState('');const[name,setName]=useState('');const[type,setType]=useState<Account['type']>('expense');
-  const[date,setDate]=useState(new Date().toISOString().slice(0,10));const[branchId,setBranchId]=useState('');const[reference,setReference]=useState('');const[description,setDescription]=useState('');const[lines,setLines]=useState<Line[]>([blankLine(),blankLine()]);const[busy,setBusy]=useState(false);
-  const totals=useMemo(()=>lines.reduce((a,l)=>({debit:a.debit+amount(l.debit),credit:a.credit+amount(l.credit)}),{debit:0,credit:0}),[lines]);
-  const balanced=totals.debit>0&&Math.round(totals.debit*100)===Math.round(totals.credit*100);
-  async function loadEntries(){const{data,error}=await supabase.from('journal_entries').select('id,entry_number,entry_date,reference,description,status,journal_lines(debit,credit)').eq('company_id',companyId).order('entry_date',{ascending:false}).order('entry_number',{ascending:false}).limit(30);if(error)setMessage(error.message);else setEntries((data??[]) as Entry[])}
-  useEffect(()=>{setBranchId(branches[0]?.id??'');loadEntries()},[companyId]);
-  async function addAccount(e:React.FormEvent){e.preventDefault();setMessage('');const{error}=await supabase.from('accounts').insert({company_id:companyId,code:code.trim(),name:name.trim(),type});if(error)setMessage(error.message);else{setCode('');setName('');setShowAccount(false);setMessage('Account created successfully.');onAccountsChanged()}}
-  function updateLine(index:number,key:keyof Line,value:string){setLines(old=>old.map((line,i)=>i===index?{...line,[key]:value}:line))}
-  async function postJournal(e:React.FormEvent){e.preventDefault();setMessage('');if(!balanced)return setMessage('Total debit and credit must be equal and greater than zero.');if(lines.some(l=>!l.accountId||((amount(l.debit)>0)===(amount(l.credit)>0))))return setMessage('Each line needs an account and either debit or credit.');setBusy(true);let entryId='';try{const{data:user}=await supabase.auth.getUser();if(!user.user)throw new Error('Your session has expired.');const entry=await supabase.from('journal_entries').insert({company_id:companyId,branch_id:branchId||null,entry_date:date,reference:reference||null,description:description||null,created_by:user.user.id}).select('id').single();if(entry.error)throw entry.error;entryId=entry.data.id;const items=lines.map(l=>({entry_id:entryId,account_id:l.accountId,debit:amount(l.debit),credit:amount(l.credit)}));const inserted=await supabase.from('journal_lines').insert(items);if(inserted.error)throw inserted.error;const posted=await supabase.rpc('post_journal',{target_entry:entryId});if(posted.error)throw posted.error;setLines([blankLine(),blankLine()]);setReference('');setDescription('');setShowJournal(false);setMessage('Journal entry posted successfully.');await loadEntries()}catch(error){if(entryId)await supabase.from('journal_entries').delete().eq('id',entryId);setMessage(error instanceof Error?error.message:'Unable to post journal entry.')}finally{setBusy(false)}}
-  return <div className="accounting-stack"><article className="panel data-panel"><div className="panel-head"><div><h3>Chart of Accounts</h3><p>Live accounts for the active company</p></div><div className="toolbar"><button className="outline" onClick={()=>setShowAccount(v=>!v)}>{showAccount?<X size={16}/>:<Plus size={16}/>} Add account</button><button className="primary small-button" onClick={()=>setShowJournal(v=>!v)}><BookOpen size={16}/> New journal</button></div></div>{message&&<p className={message.includes('success')?'notice':'alert'}>{message}</p>}{showAccount&&<form className="inline-form" onSubmit={addAccount}><label>Account code<input value={code} onChange={e=>setCode(e.target.value)} placeholder="6100" required/></label><label>Account name<input value={name} onChange={e=>setName(e.target.value)} placeholder="Internet expense" required/></label><label>Account type<select value={type} onChange={e=>setType(e.target.value as Account['type'])}><option value="asset">Asset</option><option value="liability">Liability</option><option value="equity">Equity</option><option value="income">Income</option><option value="expense">Expense</option></select></label><button className="primary">Create account</button></form>}{showJournal&&<form className="journal-form" onSubmit={postJournal}><div className="journal-meta"><label>Date<input type="date" value={date} onChange={e=>setDate(e.target.value)} required/></label><label>Branch<select value={branchId} onChange={e=>setBranchId(e.target.value)}>{branches.filter(b=>b.active).map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select></label><label>Reference<input value={reference} onChange={e=>setReference(e.target.value)} placeholder="JV-001"/></label><label>Description<input value={description} onChange={e=>setDescription(e.target.value)} placeholder="Transaction details"/></label></div><div className="journal-lines"><div className="journal-line journal-heading"><span>Account</span><span>Debit</span><span>Credit</span><span/></div>{lines.map((line,index)=><div className="journal-line" key={index}><select value={line.accountId} onChange={e=>updateLine(index,'accountId',e.target.value)} required><option value="">Select account</option>{accounts.filter(a=>a.active).map(a=><option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}</select><input type="number" min="0" step="0.01" value={line.debit} onChange={e=>updateLine(index,'debit',e.target.value)} placeholder="0.00"/><input type="number" min="0" step="0.01" value={line.credit} onChange={e=>updateLine(index,'credit',e.target.value)} placeholder="0.00"/><button type="button" disabled={lines.length===2} onClick={()=>setLines(old=>old.filter((_,i)=>i!==index))}><Trash2 size={16}/></button></div>)}</div><button type="button" className="text-button" onClick={()=>setLines(old=>[...old,blankLine()])}>+ Add another line</button><div className="journal-total"><span>Total</span><b>{pkr.format(totals.debit)}</b><b>{pkr.format(totals.credit)}</b><em className={balanced?'balanced':'unbalanced'}>{balanced?'Balanced':'Not balanced'}</em></div><div className="form-actions"><button type="button" className="outline" onClick={()=>setShowJournal(false)}>Cancel</button><button className="primary" disabled={busy||!balanced}>{busy?'Posting...':'Post journal entry'}</button></div></form>}<div className="data-table account-table"><div className="data-row data-heading"><span>Code</span><span>Account name</span><span>Type</span><span>Status</span></div>{accounts.map(a=><div className="data-row" key={a.id}><span className="code">{a.code}</span><span>{a.name}{a.system_account&&<small className="tag">System</small>}</span><span className="capitalize">{a.type}</span><span className="status">{a.active?'Active':'Inactive'}</span></div>)}</div></article><article className="panel data-panel"><div className="panel-head"><div><h3>Journal history</h3><p>Latest posted and draft entries</p></div></div>{entries.length===0?<div className="mini-empty"><BookOpen/><p>No journal entries yet.</p></div>:<div className="data-table journal-history"><div className="history-row data-heading"><span>Date</span><span>Number</span><span>Reference</span><span>Description</span><span>Amount</span><span>Status</span></div>{entries.map(e=><div className="history-row" key={e.id}><span>{e.entry_date}</span><span>JV-{String(e.entry_number).padStart(5,'0')}</span><span>{e.reference||'—'}</span><span>{e.description||'—'}</span><span>{pkr.format(e.journal_lines.reduce((sum,l)=>sum+Number(l.debit),0))}</span><span className="status"><CheckCircle2 size={14}/>{e.status}</span></div>)}</div>}</article></div>
+export default function AccountingView({
+  companyId,
+  branches,
+  accounts,
+  onAccountsChanged,
+}: {
+  companyId: string;
+  branches: Branch[];
+  accounts: Account[];
+  onAccountsChanged: () => void;
+}) {
+  const [showAccount, setShowAccount] = useState(false);
+  const [showJournal, setShowJournal] = useState(false);
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [message, setMessage] = useState("");
+  const [code, setCode] = useState("");
+  const [name, setName] = useState("");
+  const [type, setType] = useState<Account["type"]>("expense");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [branchId, setBranchId] = useState("");
+  const [reference, setReference] = useState("");
+  const [description, setDescription] = useState("");
+  const [lines, setLines] = useState<Line[]>([blankLine(), blankLine()]);
+  const [busy, setBusy] = useState(false);
+  const totals = useMemo(
+    () =>
+      lines.reduce(
+        (a, l) => ({
+          debit: a.debit + amount(l.debit),
+          credit: a.credit + amount(l.credit),
+        }),
+        { debit: 0, credit: 0 },
+      ),
+    [lines],
+  );
+  const balanced =
+    totals.debit > 0 &&
+    Math.round(totals.debit * 100) === Math.round(totals.credit * 100);
+  async function loadEntries() {
+    const { data, error } = await supabase
+      .from("journal_entries")
+      .select(
+        "id,entry_number,entry_date,reference,description,status,journal_lines(debit,credit)",
+      )
+      .eq("company_id", companyId)
+      .order("entry_date", { ascending: false })
+      .order("entry_number", { ascending: false })
+      .limit(30);
+    if (error) setMessage(error.message);
+    else setEntries((data ?? []) as Entry[]);
+  }
+  useEffect(() => {
+    setBranchId(branches[0]?.id ?? "");
+    loadEntries();
+  }, [companyId]);
+  async function addAccount(e: React.FormEvent) {
+    e.preventDefault();
+    setMessage("");
+    const { error } = await supabase
+      .from("accounts")
+      .insert({
+        company_id: companyId,
+        code: code.trim(),
+        name: name.trim(),
+        type,
+      });
+    if (error) setMessage(error.message);
+    else {
+      setCode("");
+      setName("");
+      setShowAccount(false);
+      setMessage("Account created successfully.");
+      onAccountsChanged();
+    }
+  }
+  function updateLine(index: number, key: keyof Line, value: string) {
+    setLines((old) =>
+      old.map((line, i) => (i === index ? { ...line, [key]: value } : line)),
+    );
+  }
+  async function postJournal(e: React.FormEvent) {
+    e.preventDefault();
+    setMessage("");
+    if (!balanced)
+      return setMessage(
+        "Total debit and credit must be equal and greater than zero.",
+      );
+    if (
+      lines.some(
+        (l) => !l.accountId || amount(l.debit) > 0 === amount(l.credit) > 0,
+      )
+    )
+      return setMessage(
+        "Each line needs an account and either debit or credit.",
+      );
+    setBusy(true);
+    let entryId = "";
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error("Your session has expired.");
+      const entry = await supabase
+        .from("journal_entries")
+        .insert({
+          company_id: companyId,
+          branch_id: branchId || null,
+          entry_date: date,
+          reference: reference || null,
+          description: description || null,
+          created_by: user.user.id,
+        })
+        .select("id")
+        .single();
+      if (entry.error) throw entry.error;
+      entryId = entry.data.id;
+      const items = lines.map((l) => ({
+        entry_id: entryId,
+        account_id: l.accountId,
+        debit: amount(l.debit),
+        credit: amount(l.credit),
+      }));
+      const inserted = await supabase.from("journal_lines").insert(items);
+      if (inserted.error) throw inserted.error;
+      const posted = await supabase.rpc("post_journal", {
+        target_entry: entryId,
+      });
+      if (posted.error) throw posted.error;
+      setLines([blankLine(), blankLine()]);
+      setReference("");
+      setDescription("");
+      setShowJournal(false);
+      setMessage("Journal entry posted successfully.");
+      await loadEntries();
+    } catch (error) {
+      if (entryId)
+        await supabase.from("journal_entries").delete().eq("id", entryId);
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to post journal entry.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="accounting-stack">
+      <article className="panel data-panel">
+        <div className="panel-head">
+          <div>
+            <h3>Chart of Accounts</h3>
+            <p>Live accounts for the active company</p>
+          </div>
+          <div className="toolbar">
+            <button
+              className="outline"
+              onClick={() => setShowAccount((v) => !v)}
+            >
+              {showAccount ? <X size={16} /> : <Plus size={16} />} Add account
+            </button>
+            <button
+              className="primary small-button"
+              onClick={() => setShowJournal((v) => !v)}
+            >
+              <BookOpen size={16} /> New journal
+            </button>
+          </div>
+        </div>
+        {message && (
+          <p className={message.includes("success") ? "notice" : "alert"}>
+            {message}
+          </p>
+        )}
+        {showAccount && (
+          <form className="inline-form" onSubmit={addAccount}>
+            <label>
+              Account code
+              <input
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="6100"
+                required
+              />
+            </label>
+            <label>
+              Account name
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Internet expense"
+                required
+              />
+            </label>
+            <label>
+              Account type
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value as Account["type"])}
+              >
+                <option value="asset">Asset</option>
+                <option value="liability">Liability</option>
+                <option value="equity">Equity</option>
+                <option value="income">Income</option>
+                <option value="expense">Expense</option>
+              </select>
+            </label>
+            <button className="primary">Create account</button>
+          </form>
+        )}
+        {showJournal && (
+          <form className="journal-form" onSubmit={postJournal}>
+            <div className="journal-meta">
+              <label>
+                Date
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  required
+                />
+              </label>
+              <label>
+                Branch
+                <select
+                  value={branchId}
+                  onChange={(e) => setBranchId(e.target.value)}
+                >
+                  {branches
+                    .filter((b) => b.active)
+                    .map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <label>
+                Reference
+                <input
+                  value={reference}
+                  onChange={(e) => setReference(e.target.value)}
+                  placeholder="JV-001"
+                />
+              </label>
+              <label>
+                Description
+                <input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Transaction details"
+                />
+              </label>
+            </div>
+            <div className="journal-lines">
+              <div className="journal-line journal-heading">
+                <span>Account</span>
+                <span>Debit</span>
+                <span>Credit</span>
+                <span />
+              </div>
+              {lines.map((line, index) => (
+                <div className="journal-line" key={index}>
+                  <select
+                    value={line.accountId}
+                    onChange={(e) =>
+                      updateLine(index, "accountId", e.target.value)
+                    }
+                    required
+                  >
+                    <option value="">Select account</option>
+                    {accounts
+                      .filter((a) => a.active)
+                      .map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.code} — {a.name}
+                        </option>
+                      ))}
+                  </select>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={line.debit}
+                    onChange={(e) => updateLine(index, "debit", e.target.value)}
+                    placeholder="0.00"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={line.credit}
+                    onChange={(e) =>
+                      updateLine(index, "credit", e.target.value)
+                    }
+                    placeholder="0.00"
+                  />
+                  <button
+                    type="button"
+                    disabled={lines.length === 2}
+                    onClick={() =>
+                      setLines((old) => old.filter((_, i) => i !== index))
+                    }
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => setLines((old) => [...old, blankLine()])}
+            >
+              + Add another line
+            </button>
+            <div className="journal-total">
+              <span>Total</span>
+              <b>{pkr.format(totals.debit)}</b>
+              <b>{pkr.format(totals.credit)}</b>
+              <em className={balanced ? "balanced" : "unbalanced"}>
+                {balanced ? "Balanced" : "Not balanced"}
+              </em>
+            </div>
+            <div className="form-actions">
+              <button
+                type="button"
+                className="outline"
+                onClick={() => setShowJournal(false)}
+              >
+                Cancel
+              </button>
+              <button className="primary" disabled={busy || !balanced}>
+                {busy ? "Posting..." : "Post journal entry"}
+              </button>
+            </div>
+          </form>
+        )}
+        <div className="data-table account-table">
+          <div className="data-row data-heading">
+            <span>Code</span>
+            <span>Account name</span>
+            <span>Type</span>
+            <span>Status</span>
+          </div>
+          {accounts.map((a) => (
+            <div className="data-row" key={a.id}>
+              <span className="code">{a.code}</span>
+              <span>
+                {a.name}
+                {a.system_account && <small className="tag">System</small>}
+              </span>
+              <span className="capitalize">{a.type}</span>
+              <span className="status">{a.active ? "Active" : "Inactive"}</span>
+            </div>
+          ))}
+        </div>
+      </article>
+      <article className="panel data-panel">
+        <div className="panel-head">
+          <div>
+            <h3>Journal history</h3>
+            <p>Latest posted and draft entries</p>
+          </div>
+        </div>
+        {entries.length === 0 ? (
+          <div className="mini-empty">
+            <BookOpen />
+            <p>No journal entries yet.</p>
+          </div>
+        ) : (
+          <div className="data-table journal-history">
+            <div className="history-row data-heading">
+              <span>Date</span>
+              <span>Number</span>
+              <span>Reference</span>
+              <span>Description</span>
+              <span>Amount</span>
+              <span>Status</span>
+            </div>
+            {entries.map((e) => (
+              <div className="history-row" key={e.id}>
+                <span>{e.entry_date}</span>
+                <span>JV-{String(e.entry_number).padStart(5, "0")}</span>
+                <span>{e.reference || "—"}</span>
+                <span>{e.description || "—"}</span>
+                <span>
+                  {pkr.format(
+                    e.journal_lines.reduce(
+                      (sum, l) => sum + Number(l.debit),
+                      0,
+                    ),
+                  )}
+                </span>
+                <span className="status">
+                  <CheckCircle2 size={14} />
+                  {e.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </article>
+    </div>
+  );
 }

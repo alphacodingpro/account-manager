@@ -1,0 +1,509 @@
+import { useEffect, useMemo, useState } from "react";
+import { FilePlus2, Plus, Trash2, UserPlus, X } from "lucide-react";
+import { supabase } from "./lib/supabase";
+type Branch = { id: string; name: string; active: boolean };
+type Contact = {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+};
+type Product = {
+  id: string;
+  sku: string;
+  name: string;
+  sale_price: number;
+  gst_rate: number;
+  active: boolean;
+};
+type Invoice = {
+  id: string;
+  invoice_number: number;
+  invoice_date: string;
+  due_date: string;
+  status: string;
+  subtotal: number;
+  gst_total: number;
+  total: number;
+  contacts: { name: string } | null;
+};
+type Line = {
+  productId: string;
+  description: string;
+  quantity: string;
+  unitPrice: string;
+  gstRate: string;
+};
+const blank = (): Line => ({
+  productId: "",
+  description: "",
+  quantity: "1",
+  unitPrice: "",
+  gstRate: "0",
+});
+const pkr = new Intl.NumberFormat("en-PK", {
+  style: "currency",
+  currency: "PKR",
+});
+export default function SalesView({
+  companyId,
+  branches,
+}: {
+  companyId: string;
+  branches: Branch[];
+}) {
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [customerOpen, setCustomerOpen] = useState(false);
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [message, setMessage] = useState("");
+  const [customer, setCustomer] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    ntn: "",
+    strn: "",
+  });
+  const [customerId, setCustomerId] = useState("");
+  const [branchId, setBranchId] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [dueDate, setDueDate] = useState(new Date().toISOString().slice(0, 10));
+  const [reference, setReference] = useState("");
+  const [lines, setLines] = useState<Line[]>([blank()]);
+  const [busy, setBusy] = useState(false);
+  const totals = useMemo(
+    () =>
+      lines.reduce(
+        (a, l) => {
+          const sub = Number(l.quantity || 0) * Number(l.unitPrice || 0);
+          const gst = (sub * Number(l.gstRate || 0)) / 100;
+          return {
+            subtotal: a.subtotal + sub,
+            gst: a.gst + gst,
+            total: a.total + sub + gst,
+          };
+        },
+        { subtotal: 0, gst: 0, total: 0 },
+      ),
+    [lines],
+  );
+  async function load() {
+    const [c, p, i] = await Promise.all([
+      supabase
+        .from("contacts")
+        .select("id,name,phone,email")
+        .eq("company_id", companyId)
+        .in("kind", ["customer", "both"])
+        .eq("active", true)
+        .order("name"),
+      supabase
+        .from("products")
+        .select("id,sku,name,sale_price,gst_rate,active")
+        .eq("company_id", companyId)
+        .eq("active", true)
+        .order("name"),
+      supabase
+        .from("sales_invoices")
+        .select(
+          "id,invoice_number,invoice_date,due_date,status,subtotal,gst_total,total,contacts(name)",
+        )
+        .eq("company_id", companyId)
+        .order("invoice_date", { ascending: false })
+        .limit(30),
+    ]);
+    if (c.error || p.error || i.error)
+      setMessage(
+        c.error?.message ||
+          p.error?.message ||
+          i.error?.message ||
+          "Unable to load sales",
+      );
+    else {
+      setContacts(c.data ?? []);
+      setProducts(p.data ?? []);
+      setInvoices((i.data ?? []) as unknown as Invoice[]);
+      setBranchId(branches[0]?.id ?? "");
+    }
+  }
+  useEffect(() => {
+    load();
+  }, [companyId]);
+  async function addCustomer(e: React.FormEvent) {
+    e.preventDefault();
+    const { data, error } = await supabase
+      .from("contacts")
+      .insert({ company_id: companyId, kind: "customer", ...customer })
+      .select("id")
+      .single();
+    if (error) setMessage(error.message);
+    else {
+      setMessage("Customer created successfully.");
+      setCustomer({ name: "", phone: "", email: "", ntn: "", strn: "" });
+      setCustomerOpen(false);
+      await load();
+      setCustomerId(data.id);
+    }
+  }
+  function chooseProduct(index: number, id: string) {
+    const product = products.find((p) => p.id === id);
+    setLines((old) =>
+      old.map((l, i) =>
+        i === index
+          ? {
+              ...l,
+              productId: id,
+              description: product?.name ?? "",
+              unitPrice: String(product?.sale_price ?? ""),
+              gstRate: String(product?.gst_rate ?? 0),
+            }
+          : l,
+      ),
+    );
+  }
+  function change(index: number, key: keyof Line, value: string) {
+    setLines((old) =>
+      old.map((l, i) => (i === index ? { ...l, [key]: value } : l)),
+    );
+  }
+  async function postInvoice(e: React.FormEvent) {
+    e.preventDefault();
+    setMessage("");
+    if (!customerId || !branchId)
+      return setMessage("Select a customer and branch.");
+    if (lines.some((l) => !l.description || Number(l.quantity) <= 0))
+      return setMessage("Every invoice line needs an item and quantity.");
+    setBusy(true);
+    let invoiceId = "";
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error("Session expired.");
+      const inv = await supabase
+        .from("sales_invoices")
+        .insert({
+          company_id: companyId,
+          branch_id: branchId,
+          customer_id: customerId,
+          invoice_date: date,
+          due_date: dueDate,
+          reference: reference || null,
+          created_by: user.user.id,
+        })
+        .select("id")
+        .single();
+      if (inv.error) throw inv.error;
+      invoiceId = inv.data.id;
+      const inserted = await supabase
+        .from("sales_invoice_lines")
+        .insert(
+          lines.map((l) => ({
+            invoice_id: invoiceId,
+            product_id: l.productId || null,
+            description: l.description,
+            quantity: Number(l.quantity),
+            unit_price: Number(l.unitPrice || 0),
+            gst_rate: Number(l.gstRate || 0),
+          })),
+        );
+      if (inserted.error) throw inserted.error;
+      const posted = await supabase.rpc("post_sales_invoice", {
+        target_invoice: invoiceId,
+      });
+      if (posted.error) throw posted.error;
+      setInvoiceOpen(false);
+      setLines([blank()]);
+      setReference("");
+      setMessage("Sales invoice posted successfully.");
+      await load();
+    } catch (error) {
+      if (invoiceId)
+        await supabase.from("sales_invoices").delete().eq("id", invoiceId);
+      setMessage(
+        error instanceof Error ? error.message : "Unable to post invoice.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="accounting-stack">
+      <article className="panel data-panel">
+        <div className="panel-head">
+          <div>
+            <h3>Sales invoices</h3>
+            <p>Customers, GST invoices and receivables</p>
+          </div>
+          <div className="toolbar">
+            <button
+              className="outline"
+              onClick={() => setCustomerOpen((v) => !v)}
+            >
+              {customerOpen ? <X size={16} /> : <UserPlus size={16} />} Customer
+            </button>
+            <button
+              className="primary small-button"
+              onClick={() => setInvoiceOpen((v) => !v)}
+            >
+              <FilePlus2 size={16} /> New invoice
+            </button>
+          </div>
+        </div>
+        {message && (
+          <p className={message.includes("success") ? "notice" : "alert"}>
+            {message}
+          </p>
+        )}
+        {customerOpen && (
+          <form className="customer-form" onSubmit={addCustomer}>
+            <label>
+              Name
+              <input
+                value={customer.name}
+                onChange={(e) =>
+                  setCustomer({ ...customer, name: e.target.value })
+                }
+                required
+              />
+            </label>
+            <label>
+              Phone
+              <input
+                value={customer.phone}
+                onChange={(e) =>
+                  setCustomer({ ...customer, phone: e.target.value })
+                }
+              />
+            </label>
+            <label>
+              Email
+              <input
+                type="email"
+                value={customer.email}
+                onChange={(e) =>
+                  setCustomer({ ...customer, email: e.target.value })
+                }
+              />
+            </label>
+            <label>
+              NTN
+              <input
+                value={customer.ntn}
+                onChange={(e) =>
+                  setCustomer({ ...customer, ntn: e.target.value })
+                }
+              />
+            </label>
+            <label>
+              STRN
+              <input
+                value={customer.strn}
+                onChange={(e) =>
+                  setCustomer({ ...customer, strn: e.target.value })
+                }
+              />
+            </label>
+            <button className="primary">Save customer</button>
+          </form>
+        )}
+        {invoiceOpen && (
+          <form className="invoice-form" onSubmit={postInvoice}>
+            <div className="invoice-meta">
+              <label>
+                Customer
+                <select
+                  value={customerId}
+                  onChange={(e) => setCustomerId(e.target.value)}
+                  required
+                >
+                  <option value="">Select customer</option>
+                  {contacts.map((c) => (
+                    <option value={c.id} key={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Branch
+                <select
+                  value={branchId}
+                  onChange={(e) => setBranchId(e.target.value)}
+                  required
+                >
+                  {branches
+                    .filter((b) => b.active)
+                    .map((b) => (
+                      <option value={b.id} key={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <label>
+                Invoice date
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  required
+                />
+              </label>
+              <label>
+                Due date
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  required
+                />
+              </label>
+              <label>
+                Reference
+                <input
+                  value={reference}
+                  onChange={(e) => setReference(e.target.value)}
+                />
+              </label>
+            </div>
+            <div className="invoice-lines">
+              <div className="invoice-line data-heading">
+                <span>Product/service</span>
+                <span>Description</span>
+                <span>Qty</span>
+                <span>Price</span>
+                <span>GST %</span>
+                <span>Total</span>
+                <span />
+              </div>
+              {lines.map((l, index) => {
+                const lineTotal =
+                  Number(l.quantity || 0) *
+                  Number(l.unitPrice || 0) *
+                  (1 + Number(l.gstRate || 0) / 100);
+                return (
+                  <div className="invoice-line" key={index}>
+                    <select
+                      value={l.productId}
+                      onChange={(e) => chooseProduct(index, e.target.value)}
+                    >
+                      <option value="">Custom line</option>
+                      {products.map((p) => (
+                        <option value={p.id} key={p.id}>
+                          {p.sku} — {p.name}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      value={l.description}
+                      onChange={(e) =>
+                        change(index, "description", e.target.value)
+                      }
+                      required
+                    />
+                    <input
+                      type="number"
+                      min="0.001"
+                      step="0.001"
+                      value={l.quantity}
+                      onChange={(e) =>
+                        change(index, "quantity", e.target.value)
+                      }
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={l.unitPrice}
+                      onChange={(e) =>
+                        change(index, "unitPrice", e.target.value)
+                      }
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={l.gstRate}
+                      onChange={(e) => change(index, "gstRate", e.target.value)}
+                    />
+                    <b>{pkr.format(lineTotal)}</b>
+                    <button
+                      type="button"
+                      disabled={lines.length === 1}
+                      onClick={() =>
+                        setLines((old) => old.filter((_, i) => i !== index))
+                      }
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => setLines((old) => [...old, blank()])}
+            >
+              <Plus size={14} /> Add line
+            </button>
+            <div className="invoice-totals">
+              <span>
+                Subtotal <b>{pkr.format(totals.subtotal)}</b>
+              </span>
+              <span>
+                GST <b>{pkr.format(totals.gst)}</b>
+              </span>
+              <span className="grand-total">
+                Total <b>{pkr.format(totals.total)}</b>
+              </span>
+            </div>
+            <div className="form-actions">
+              <button
+                type="button"
+                className="outline"
+                onClick={() => setInvoiceOpen(false)}
+              >
+                Cancel
+              </button>
+              <button className="primary" disabled={busy || totals.total <= 0}>
+                {busy ? "Posting..." : "Post invoice"}
+              </button>
+            </div>
+          </form>
+        )}{" "}
+        {invoices.length === 0 ? (
+          <div className="mini-empty">
+            <FilePlus2 />
+            <p>No sales invoices yet.</p>
+          </div>
+        ) : (
+          <div className="sales-table">
+            <div className="sales-row data-heading">
+              <span>Invoice</span>
+              <span>Date</span>
+              <span>Customer</span>
+              <span>Subtotal</span>
+              <span>GST</span>
+              <span>Total</span>
+              <span>Status</span>
+            </div>
+            {invoices.map((i) => (
+              <div className="sales-row" key={i.id}>
+                <span className="code">
+                  INV-{String(i.invoice_number).padStart(6, "0")}
+                </span>
+                <span>{i.invoice_date}</span>
+                <span>{i.contacts?.name ?? "—"}</span>
+                <span>{pkr.format(i.subtotal)}</span>
+                <span>{pkr.format(i.gst_total)}</span>
+                <b>{pkr.format(i.total)}</b>
+                <span className="status">{i.status}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </article>
+    </div>
+  );
+}
