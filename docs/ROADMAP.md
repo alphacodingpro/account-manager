@@ -6,6 +6,7 @@
 - [x] Company onboarding and multi-company switcher
 - [x] Branch creation and live branch list
 - [x] Chart of Accounts and balanced journal engine foundation
+- [x] Custom accounts, journal posting and transaction history
 - [x] Responsive white/blue application shell
 - [ ] Company invitations and permission editor
 
