@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: cloudledger-pk-api
+    runtime: node
+    rootDir: .
+    buildCommand: npm install && npm run build -w @cloudledger/api
+    startCommand: npm run start:prod -w @cloudledger/api
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: WEB_ORIGIN
+        sync: false
+  - type: web
+    name: cloudledger-pk-web
+    runtime: static
+    rootDir: .
+    buildCommand: npm install && npm run build -w @cloudledger/web
+    staticPublishPath: apps/web/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
+      - key: VITE_API_URL
+        sync: false
+

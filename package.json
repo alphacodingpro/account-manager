@@ -1,0 +1,15 @@
+{
+  "name": "cloudledger-pk",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w @cloudledger/web\" \"npm run start:dev -w @cloudledger/api\"",
+    "build": "npm run build -w @cloudledger/api && npm run build -w @cloudledger/web",
+    "test": "npm run test -w @cloudledger/api",
+    "typecheck": "npm run typecheck -w @cloudledger/web && npm run typecheck -w @cloudledger/api"
+  },
+  "devDependencies": {"concurrently": "^9.0.0"},
+  "engines": {"node": ">=20"}
+}
+
