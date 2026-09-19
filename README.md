@@ -32,3 +32,12 @@ Never commit Supabase service-role keys. The browser only uses the publishable/a
 
 See [docs/ROADMAP.md](docs/ROADMAP.md).
 
+## Automatic Supabase migrations
+
+GitHub Actions can apply new migrations after the repository secrets are configured. Run the `Baseline Supabase migrations` workflow once after manually applying migrations 0001–0005. Future files pushed under `supabase/migrations/` are deployed automatically by `Deploy Supabase migrations`.
+
+Required GitHub Actions secrets:
+
+- `SUPABASE_ACCESS_TOKEN`
+- `SUPABASE_PROJECT_ID`
+- `SUPABASE_DB_PASSWORD`
