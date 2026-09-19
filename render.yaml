@@ -2,6 +2,7 @@ services:
   - type: web
     name: cloudledger-pk-api
     runtime: node
+    plan: free
     rootDir: .
     buildCommand: npm install && npm run build -w @cloudledger/api
     startCommand: npm run start:prod -w @cloudledger/api
@@ -18,6 +19,7 @@ services:
   - type: web
     name: cloudledger-pk-web
     runtime: static
+    plan: free
     rootDir: .
     buildCommand: npm install && npm run build -w @cloudledger/web
     staticPublishPath: apps/web/dist
@@ -32,4 +34,3 @@ services:
         sync: false
       - key: VITE_API_URL
         sync: false
-
