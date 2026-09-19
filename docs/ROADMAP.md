@@ -2,10 +2,12 @@
 
 ## Milestone 1 — Foundation
 
-- Authentication and profile
-- Companies, branches, memberships and permissions
-- Chart of Accounts and balanced journal engine
-- Responsive white/blue application shell
+- [x] Authentication and profile
+- [x] Company onboarding and multi-company switcher
+- [x] Branch creation and live branch list
+- [x] Chart of Accounts and balanced journal engine foundation
+- [x] Responsive white/blue application shell
+- [ ] Company invitations and permission editor
 
 ## Milestone 2 — Sales and purchases
 
@@ -28,4 +30,3 @@
 - Attendance, leave, salary, allowances, deductions and loans
 - Configurable EOBI, SESSI and income-tax rules with effective dates
 - Payslips and automatic accounting entries
-
