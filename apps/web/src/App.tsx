@@ -24,6 +24,9 @@ import { isSupabaseConfigured, supabase } from "./lib/supabase";
 import AccountingView from "./AccountingView";
 import SalesView from "./SalesView";
 import InventoryView from "./InventoryView";
+import PurchasesView from "./PurchasesView";
+import PayrollView from "./PayrollView";
+import ReportsView from "./ReportsView";
 
 type Company = {
   id: string;
@@ -787,7 +790,12 @@ function Dashboard({
           {view === "Sales" && (
             <SalesView companyId={companyId} branches={branches} />
           )}{" "}
+          {view === "Purchases" && (
+            <PurchasesView companyId={companyId} branches={branches} accounts={accounts} />
+          )}{" "}
           {view === "Inventory" && <InventoryView companyId={companyId} />}{" "}
+          {view === "Payroll" && <PayrollView companyId={companyId} branches={branches} />}{" "}
+          {view === "Reports" && <ReportsView companyId={companyId} />}{" "}
           {view === "Settings" && company && (
             <SettingsView
               company={company}
@@ -799,7 +807,10 @@ function Dashboard({
             "Overview",
             "Accounting",
             "Sales",
+            "Purchases",
             "Inventory",
+            "Payroll",
+            "Reports",
             "Settings",
           ].includes(view) && <Placeholder title={view} />}
         </section>
