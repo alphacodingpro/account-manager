@@ -15,7 +15,10 @@ import {
   ReceiptText,
   Search,
   Settings,
+  ShieldCheck,
   ShoppingCart,
+  Sparkles,
+  TrendingUp,
   Users,
   WalletCards,
   X,
@@ -247,15 +250,16 @@ const Metric = ({
   detail: string;
   tone?: string;
 }) => (
-  <article className="metric">
+  <article className={`metric metric-${tone}`}>
     <div className={`metric-icon ${tone}`}>
       <CircleDollarSign size={21} />
     </div>
     <div>
       <p>{label}</p>
       <h3>{value}</h3>
-      <span>{detail}</span>
+      <span><TrendingUp size={13} /> {detail}</span>
     </div>
+    <div className="metric-glow" />
   </article>
 );
 function Overview({
@@ -682,9 +686,7 @@ function Dashboard({
       <aside className={menu ? "open" : ""}>
         <div className="side-brand">
           <div className="logo small">CL</div>
-          <strong>
-            CloudLedger <span>PK</span>
-          </strong>
+          <div className="brand-copy"><strong>CloudLedger <span>PK</span></strong><small>Business finance</small></div>
           <button onClick={() => setMenu(false)}>
             <X />
           </button>
@@ -727,7 +729,7 @@ function Dashboard({
           </div>
           <div>
             <b>{session?.user.email ?? "Demo User"}</b>
-            <small>{demo ? "Preview" : "Authenticated user"}</small>
+            <small><ShieldCheck size={12} /> {demo ? "Preview mode" : "Secure session"}</small>
           </div>
           {!demo && (
             <button
@@ -748,18 +750,20 @@ function Dashboard({
           <div className="search">
             <Search />
             <input placeholder="Search transactions, accounts..." />
+            <kbd>⌘ K</kbd>
           </div>
-          <button className="icon-button">
+          <button className="icon-button notification-button" aria-label="Notifications">
             <Bell />
+            <i />
           </button>
-          <button className="new-button" disabled>
-            + New transaction
+          <button className="new-button" onClick={() => setView("Accounting")}>
+            <Sparkles size={16} /> Quick entry
           </button>
         </header>
         <section className="page">
           <div className="page-title">
             <div>
-              <p className="eyebrow">{company?.name?.toUpperCase()}</p>
+              <p className="eyebrow"><span className="live-dot" /> {company?.name?.toUpperCase()}</p>
               <h1>{view === "Overview" ? "Financial overview" : view}</h1>
               <p className="muted">
                 {view === "Overview"
@@ -767,7 +771,7 @@ function Dashboard({
                   : "Manage " + view.toLowerCase() + " for the active company."}
               </p>
             </div>
-            <select>
+            <select className="period-select">
               <option>Current financial year</option>
             </select>
           </div>
