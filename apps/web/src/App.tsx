@@ -592,6 +592,9 @@ function Dashboard({
   const [branches, setBranches] = useState<Branch[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [summary, setSummary] = useState<DashboardSummary>(emptySummary);
+  const [companyCreator, setCompanyCreator] = useState(false);
+  const [newCompanyName, setNewCompanyName] = useState("");
+  const [companyBusy, setCompanyBusy] = useState(false);
   const [loading, setLoading] = useState(!demo);
   const [error, setError] = useState("");
   const company = companies.find((c) => c.id === companyId);
@@ -663,6 +666,24 @@ function Dashboard({
       setSummary((s.data as DashboardSummary) ?? emptySummary);
     }
   }
+  async function createAdditionalCompany(e: React.FormEvent) {
+    e.preventDefault();
+    if (demo) return;
+    setCompanyBusy(true);
+    setError("");
+    const result = await supabase.rpc("create_company", {
+      company_name: newCompanyName.trim(),
+    });
+    if (result.error) setError(result.error.message);
+    else {
+      setNewCompanyName("");
+      setCompanyCreator(false);
+      await loadCompanies(result.data as string);
+      setView("Overview");
+      setMenu(false);
+    }
+    setCompanyBusy(false);
+  }
   useEffect(() => {
     loadCompanies();
   }, []);
@@ -708,6 +729,17 @@ function Dashboard({
           </span>
           <ChevronDown />
         </label>
+        {!demo && (
+          <button className="add-company-button" onClick={() => setCompanyCreator((v) => !v)}>
+            {companyCreator ? <X size={16} /> : <Plus size={16} />} {companyCreator ? "Cancel" : "New company"}
+          </button>
+        )}
+        {companyCreator && (
+          <form className="company-create-form" onSubmit={createAdditionalCompany}>
+            <input value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} placeholder="Company name" minLength={2} required autoFocus />
+            <button disabled={companyBusy}>{companyBusy ? "Creating..." : "Create company"}</button>
+          </form>
+        )}
         <nav>
           {nav.map(([name, Icon]) => (
             <button

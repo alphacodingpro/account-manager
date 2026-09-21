@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { FilePlus2, Plus, Trash2, UserPlus, X } from "lucide-react";
+import { FilePlus2, Pencil, Plus, RotateCcw, Trash2, UserPlus, X } from "lucide-react";
 import { supabase } from "./lib/supabase";
 
 type Branch = { id: string; name: string; active: boolean };
@@ -19,6 +19,7 @@ export default function PurchasesView({ companyId, branches, accounts }: { compa
   const [bills, setBills] = useState<Bill[]>([]);
   const [supplierOpen, setSupplierOpen] = useState(false);
   const [billOpen, setBillOpen] = useState(false);
+  const [editingBillId, setEditingBillId] = useState("");
   const [supplierName, setSupplierName] = useState("");
   const [supplierId, setSupplierId] = useState("");
   const [branchId, setBranchId] = useState("");
@@ -61,30 +62,33 @@ export default function PurchasesView({ companyId, branches, accounts }: { compa
     e.preventDefault(); const result = await supabase.from("contacts").insert({ company_id: companyId, kind: "supplier", name: supplierName.trim() }).select("id").single();
     if (result.error) setMessage(result.error.message); else { setSupplierName(""); setSupplierOpen(false); setSupplierId(result.data.id); setMessage("Supplier created successfully."); await load(); }
   }
-  async function postBill(e: React.FormEvent) {
-    e.preventDefault(); setMessage("");
+  async function saveBill(shouldPost: boolean) {
+    setMessage("");
     if (!supplierId || !branchId) return setMessage("Select a supplier and branch.");
     if (lines.some((l) => !l.description || Number(l.quantity) <= 0 || (!l.productId && !l.accountId))) return setMessage("Complete every bill line.");
-    setBusy(true); let billId = "";
+    setBusy(true); let billId = editingBillId; let createdNow = false;
     try {
       const { data: auth } = await supabase.auth.getUser(); if (!auth.user) throw new Error("Session expired.");
-      const created = await supabase.from("purchase_bills").insert({ company_id: companyId, branch_id: branchId, warehouse_id: warehouseId || null, supplier_id: supplierId, supplier_reference: reference || null, bill_date: date, due_date: dueDate, created_by: auth.user.id }).select("id").single();
-      if (created.error) throw created.error; billId = created.data.id;
+      const payload={ company_id: companyId, branch_id: branchId, warehouse_id: warehouseId || null, supplier_id: supplierId, supplier_reference: reference || null, bill_date: date, due_date: dueDate, created_by: auth.user.id };
+      if(editingBillId){const updated=await supabase.from("purchase_bills").update(payload).eq("id",editingBillId).eq("status","draft");if(updated.error)throw updated.error;const removed=await supabase.from("purchase_bill_lines").delete().eq("bill_id",editingBillId);if(removed.error)throw removed.error;}
+      else{const created = await supabase.from("purchase_bills").insert(payload).select("id").single();if (created.error) throw created.error; billId = created.data.id; createdNow=true;}
       const inserted = await supabase.from("purchase_bill_lines").insert(lines.map((l) => ({ bill_id: billId, product_id: l.productId || null, expense_account_id: l.accountId || null, description: l.description, quantity: Number(l.quantity), unit_price: Number(l.unitPrice || 0), gst_rate: Number(l.gstRate || 0) })));
       if (inserted.error) throw inserted.error;
-      const posted = await supabase.rpc("post_purchase_bill", { target_bill: billId }); if (posted.error) throw posted.error;
-      setBillOpen(false); setLines([blank()]); setReference(""); setMessage("Purchase bill posted successfully."); await load();
-    } catch (error) { if (billId) await supabase.from("purchase_bills").delete().eq("id", billId); setMessage(error instanceof Error ? error.message : "Unable to post bill."); }
+      if(shouldPost){const posted = await supabase.rpc("post_purchase_bill", { target_bill: billId }); if (posted.error) throw posted.error;}
+      setBillOpen(false); setLines([blank()]); setReference(""); setEditingBillId(""); setMessage(shouldPost ? "Purchase bill posted successfully." : "Bill draft saved successfully."); await load();
+    } catch (error) { if (createdNow && billId) await supabase.from("purchase_bills").delete().eq("id", billId); setMessage(error instanceof Error ? error.message : "Unable to save bill."); }
     finally { setBusy(false); }
   }
+  async function editBill(id:string){const [h,d]=await Promise.all([supabase.from("purchase_bills").select("supplier_id,branch_id,warehouse_id,bill_date,due_date,supplier_reference,status").eq("id",id).single(),supabase.from("purchase_bill_lines").select("product_id,expense_account_id,description,quantity,unit_price,gst_rate").eq("bill_id",id).order("id")]);if(h.error||d.error)return setMessage(h.error?.message||d.error?.message||"Unable to load draft.");if(h.data.status!=="draft")return setMessage("Only draft bills can be edited.");setEditingBillId(id);setSupplierId(h.data.supplier_id);setBranchId(h.data.branch_id);setWarehouseId(h.data.warehouse_id||"");setDate(h.data.bill_date);setDueDate(h.data.due_date);setReference(h.data.supplier_reference||"");setLines((d.data??[]).map(l=>({productId:l.product_id||"",accountId:l.expense_account_id||"",description:l.description,quantity:String(l.quantity),unitPrice:String(l.unit_price),gstRate:String(l.gst_rate)})));setBillOpen(true);setMessage("");}
+  async function removeOrVoidBill(bill:Bill){const action=bill.status==="draft"?"delete":"void";if(!confirm(`${action==="delete"?"Delete draft":"Void posted"} bill BILL-${String(bill.bill_number).padStart(6,"0")}?`))return;const result=action==="delete"?await supabase.from("purchase_bills").delete().eq("id",bill.id).eq("status","draft"):await supabase.rpc("void_purchase_bill",{target_bill:bill.id,target_reason:"Voided by user"});if(result.error)setMessage(result.error.message);else{setMessage(action==="delete"?"Bill draft deleted successfully.":"Bill voided with a reversing journal.");await load();}}
   return <div className="accounting-stack"><article className="panel data-panel">
     <div className="panel-head"><div><h3>Purchase bills</h3><p>Suppliers, input GST, stock and payables</p></div><div className="toolbar">
       <button className="outline" onClick={() => setSupplierOpen((v) => !v)}>{supplierOpen ? <X size={16}/> : <UserPlus size={16}/>} Supplier</button>
-      <button className="primary small-button" onClick={() => setBillOpen((v) => !v)}><FilePlus2 size={16}/> New bill</button>
+      <button className="primary small-button" onClick={() => {setBillOpen((v) => !v);setEditingBillId("");setLines([blank()]);}}><FilePlus2 size={16}/> New bill</button>
     </div></div>
     {message && <p className={message.includes("success") ? "notice" : "alert"}>{message}</p>}
     {supplierOpen && <form className="customer-form" onSubmit={addSupplier}><label>Supplier name<input value={supplierName} onChange={(e) => setSupplierName(e.target.value)} required/></label><button className="primary">Save supplier</button></form>}
-    {billOpen && <form className="invoice-form" onSubmit={postBill}>
+    {billOpen && <form className="invoice-form" onSubmit={(e)=>{e.preventDefault();saveBill(true);}}>
       <div className="invoice-meta"><label>Supplier<select value={supplierId} onChange={(e) => setSupplierId(e.target.value)} required><option value="">Select</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
       <label>Branch<select value={branchId} onChange={(e) => { setBranchId(e.target.value); setWarehouseId(warehouses.find((w) => w.branch_id === e.target.value)?.id ?? ""); }} required><option value="">Select</option>{branches.filter((b) => b.active).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
       <label>Warehouse<select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}><option value="">None</option>{warehouses.filter((w) => w.branch_id === branchId).map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
@@ -92,8 +96,8 @@ export default function PurchasesView({ companyId, branches, accounts }: { compa
       <label>Supplier reference<input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Optional"/></label>
       <div className="invoice-lines"><div className="purchase-line data-heading"><span>Product</span><span>Description</span><span>Expense account</span><span>Qty</span><span>Price</span><span>GST %</span><span>Total</span><span/></div>
       {lines.map((l, i) => <div className="purchase-line" key={i}><select value={l.productId} onChange={(e) => chooseProduct(i, e.target.value)}><option value="">Expense only</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select><input value={l.description} onChange={(e) => change(i, "description", e.target.value)} required/><select value={l.accountId} onChange={(e) => change(i, "accountId", e.target.value)}><option value="">Inventory</option>{expenseAccounts.map((a) => <option key={a.id} value={a.id}>{a.code} · {a.name}</option>)}</select><input type="number" min="0.001" step="0.001" value={l.quantity} onChange={(e) => change(i, "quantity", e.target.value)}/><input type="number" min="0" step="0.01" value={l.unitPrice} onChange={(e) => change(i, "unitPrice", e.target.value)}/><input type="number" min="0" max="100" step="0.01" value={l.gstRate} onChange={(e) => change(i, "gstRate", e.target.value)}/><b>{pkr.format(Number(l.quantity || 0) * Number(l.unitPrice || 0) * (1 + Number(l.gstRate || 0) / 100))}</b><button type="button" disabled={lines.length === 1} onClick={() => setLines(lines.filter((_, n) => n !== i))}><Trash2 size={15}/></button></div>)}</div>
-      <button type="button" className="text-button" onClick={() => setLines([...lines, blank()])}><Plus size={15}/> Add line</button><div className="invoice-totals"><span>Subtotal <b>{pkr.format(totals.sub)}</b></span><span>Input GST <b>{pkr.format(totals.gst)}</b></span><span className="grand-total">Total <b>{pkr.format(totals.total)}</b></span></div><div className="form-actions"><button type="button" className="outline" onClick={() => setBillOpen(false)}>Cancel</button><button className="primary" disabled={busy}>{busy ? "Posting..." : "Post bill"}</button></div>
+      <button type="button" className="text-button" onClick={() => setLines([...lines, blank()])}><Plus size={15}/> Add line</button><div className="invoice-totals"><span>Subtotal <b>{pkr.format(totals.sub)}</b></span><span>Input GST <b>{pkr.format(totals.gst)}</b></span><span className="grand-total">Total <b>{pkr.format(totals.total)}</b></span></div><div className="form-actions"><button type="button" className="outline" onClick={() => setBillOpen(false)}>Cancel</button><button type="button" className="outline" disabled={busy} onClick={()=>saveBill(false)}>Save draft</button><button className="primary" disabled={busy}>{busy ? "Saving..." : editingBillId ? "Update & post" : "Post bill"}</button></div>
     </form>}
-    <div className="sales-table"><div className="purchase-row data-heading"><span>No.</span><span>Date</span><span>Supplier</span><span>Due</span><span>Total</span><span>Paid</span><span>Status</span></div>{bills.map((b) => <div className="purchase-row" key={b.id}><span className="code">BILL-{String(b.bill_number).padStart(6, "0")}</span><span>{b.bill_date}</span><span>{b.contacts?.name ?? "—"}</span><span>{b.due_date}</span><b>{pkr.format(Number(b.total))}</b><span>{pkr.format(Number(b.amount_paid))}</span><span className="status">{b.status}</span></div>)}</div>
+    <div className="sales-table"><div className="purchase-row data-heading"><span>No.</span><span>Date</span><span>Supplier</span><span>Due</span><span>Total</span><span>Paid</span><span>Status</span><span>Actions</span></div>{bills.map((b) => <div className="purchase-row" key={b.id}><span className="code">BILL-{String(b.bill_number).padStart(6, "0")}</span><span>{b.bill_date}</span><span>{b.contacts?.name ?? "—"}</span><span>{b.due_date}</span><b>{pkr.format(Number(b.total))}</b><span>{pkr.format(Number(b.amount_paid))}</span><span className="status">{b.status}</span><span className="row-actions">{b.status==="draft"&&<button title="Edit draft" onClick={()=>editBill(b.id)}><Pencil size={14}/></button>}{["draft","posted"].includes(b.status)&&<button className="danger" title={b.status==="draft"?"Delete":"Void"} onClick={()=>removeOrVoidBill(b)}>{b.status==="draft"?<Trash2 size={14}/>:<RotateCcw size={14}/>}</button>}</span></div>)}</div>
   </article></div>;
 }

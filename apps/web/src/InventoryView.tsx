@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Package, Plus, X } from "lucide-react";
+import { Package, Pencil, Plus, Trash2, X } from "lucide-react";
 import { supabase } from "./lib/supabase";
 type Product = {
   id: string;
@@ -21,6 +21,7 @@ const pkr = new Intl.NumberFormat("en-PK", {
 export default function InventoryView({ companyId }: { companyId: string }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState("");
   const [message, setMessage] = useState("");
   const [form, setForm] = useState({
     sku: "",
@@ -46,9 +47,7 @@ export default function InventoryView({ companyId }: { companyId: string }) {
   }, [companyId]);
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    const { error } = await supabase
-      .from("products")
-      .insert({
+    const payload = {
         company_id: companyId,
         sku: form.sku.trim(),
         name: form.name.trim(),
@@ -58,11 +57,16 @@ export default function InventoryView({ companyId }: { companyId: string }) {
         gst_rate: Number(form.gst_rate || 0),
         reorder_level: Number(form.reorder_level || 0),
         is_service: form.is_service,
-      });
+      };
+    const result = editingId
+      ? await supabase.from("products").update(payload).eq("id", editingId).eq("company_id", companyId)
+      : await supabase.from("products").insert(payload);
+    const { error } = result;
     if (error) setMessage(error.message);
     else {
-      setMessage("Product created successfully.");
+      setMessage(editingId ? "Product updated successfully." : "Product created successfully.");
       setOpen(false);
+      setEditingId("");
       setForm({
         sku: "",
         name: "",
@@ -76,6 +80,18 @@ export default function InventoryView({ companyId }: { companyId: string }) {
       load();
     }
   }
+  function edit(product: Product) {
+    setEditingId(product.id);
+    setForm({ sku: product.sku, name: product.name, unit: product.unit, sale_price: String(product.sale_price), purchase_price: String(product.purchase_price), gst_rate: String(product.gst_rate), reorder_level: String(product.reorder_level), is_service: product.is_service });
+    setOpen(true);
+    setMessage("");
+  }
+  async function remove(product: Product) {
+    if (!confirm(`Delete ${product.name}? This is only allowed when it has never been used in a transaction.`)) return;
+    const result = await supabase.from("products").delete().eq("id", product.id).eq("company_id", companyId);
+    if (result.error) setMessage("This item is already used in a transaction and cannot be deleted. Edit it or mark it inactive instead.");
+    else { setMessage("Product deleted successfully."); await load(); }
+  }
   return (
     <div className="accounting-stack">
       <article className="panel data-panel">
@@ -86,9 +102,9 @@ export default function InventoryView({ companyId }: { companyId: string }) {
           </div>
           <button
             className="primary small-button"
-            onClick={() => setOpen((v) => !v)}
+            onClick={() => { setOpen((v) => !v); setEditingId(""); }}
           >
-            {open ? <X size={16} /> : <Plus size={16} />} New item
+            {open ? <X size={16} /> : <Plus size={16} />} {editingId ? "Cancel edit" : "New item"}
           </button>
         </div>
         {message && (
@@ -183,7 +199,7 @@ export default function InventoryView({ companyId }: { companyId: string }) {
               />{" "}
               This is a service
             </label>
-            <button className="primary">Save item</button>
+            <button className="primary">{editingId ? "Update item" : "Save item"}</button>
           </form>
         )}{" "}
         {products.length === 0 ? (
@@ -200,6 +216,7 @@ export default function InventoryView({ companyId }: { companyId: string }) {
               <span>Sale price</span>
               <span>GST</span>
               <span>Stock</span>
+              <span>Actions</span>
             </div>
             {products.map((p) => (
               <div className="inventory-row" key={p.id}>
@@ -220,6 +237,7 @@ export default function InventoryView({ companyId }: { companyId: string }) {
                 >
                   {p.is_service ? "—" : p.quantity_on_hand}
                 </span>
+                <span className="row-actions"><button title="Edit" onClick={() => edit(p)}><Pencil size={14}/></button><button className="danger" title="Delete" onClick={() => remove(p)}><Trash2 size={14}/></button></span>
               </div>
             ))}
           </div>

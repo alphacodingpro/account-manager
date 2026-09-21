@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, CheckCircle2, Plus, Trash2, X } from "lucide-react";
+import { BookOpen, CheckCircle2, Pencil, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import { supabase } from "./lib/supabase";
 
 type Account = {
@@ -46,6 +46,7 @@ export default function AccountingView({
   onAccountsChanged: () => void;
 }) {
   const [showAccount, setShowAccount] = useState(false);
+  const [editingAccountId, setEditingAccountId] = useState("");
   const [showJournal, setShowJournal] = useState(false);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [message, setMessage] = useState("");
@@ -92,22 +93,41 @@ export default function AccountingView({
   async function addAccount(e: React.FormEvent) {
     e.preventDefault();
     setMessage("");
-    const { error } = await supabase
-      .from("accounts")
-      .insert({
+    const payload = {
         company_id: companyId,
         code: code.trim(),
         name: name.trim(),
         type,
-      });
+      };
+    const result = editingAccountId
+      ? await supabase.from("accounts").update(payload).eq("id", editingAccountId).eq("company_id", companyId).eq("system_account", false)
+      : await supabase.from("accounts").insert(payload);
+    const { error } = result;
     if (error) setMessage(error.message);
     else {
       setCode("");
       setName("");
+      setEditingAccountId("");
       setShowAccount(false);
-      setMessage("Account created successfully.");
+      setMessage(editingAccountId ? "Account updated successfully." : "Account created successfully.");
       onAccountsChanged();
     }
+  }
+  function editAccount(account: Account) {
+    if (account.system_account) return setMessage("System accounts cannot be edited.");
+    setEditingAccountId(account.id); setCode(account.code); setName(account.name); setType(account.type); setShowAccount(true); setMessage("");
+  }
+  async function deleteAccount(account: Account) {
+    if (account.system_account) return setMessage("System accounts cannot be deleted.");
+    if (!confirm(`Delete account ${account.code} — ${account.name}?`)) return;
+    const result = await supabase.from("accounts").delete().eq("id", account.id).eq("company_id", companyId).eq("system_account", false);
+    if (result.error) setMessage("This account is already used and cannot be deleted. Keep it for audit history.");
+    else { setMessage("Account deleted successfully."); await onAccountsChanged(); }
+  }
+  async function reverseEntry(entry: Entry) {
+    if (!confirm(`Reverse JV-${String(entry.entry_number).padStart(5,"0")}? A new opposite journal will be created.`)) return;
+    const result = await supabase.rpc("reverse_manual_journal", { target_entry: entry.id, target_reason: "Reversed by user" });
+    if (result.error) setMessage(result.error.message); else { setMessage("Journal entry reversed successfully."); await loadEntries(); }
   }
   function updateLine(index: number, key: keyof Line, value: string) {
     setLines((old) =>
@@ -189,9 +209,9 @@ export default function AccountingView({
           <div className="toolbar">
             <button
               className="outline"
-              onClick={() => setShowAccount((v) => !v)}
+              onClick={() => { setShowAccount((v) => !v); setEditingAccountId(""); setCode(""); setName(""); }}
             >
-              {showAccount ? <X size={16} /> : <Plus size={16} />} Add account
+              {showAccount ? <X size={16} /> : <Plus size={16} />} {editingAccountId ? "Cancel edit" : "Add account"}
             </button>
             <button
               className="primary small-button"
@@ -239,7 +259,7 @@ export default function AccountingView({
                 <option value="expense">Expense</option>
               </select>
             </label>
-            <button className="primary">Create account</button>
+            <button className="primary">{editingAccountId ? "Update account" : "Create account"}</button>
           </form>
         )}
         {showJournal && (
@@ -376,6 +396,7 @@ export default function AccountingView({
             <span>Account name</span>
             <span>Type</span>
             <span>Status</span>
+            <span>Actions</span>
           </div>
           {accounts.map((a) => (
             <div className="data-row" key={a.id}>
@@ -386,6 +407,7 @@ export default function AccountingView({
               </span>
               <span className="capitalize">{a.type}</span>
               <span className="status">{a.active ? "Active" : "Inactive"}</span>
+              <span className="row-actions">{!a.system_account && <><button title="Edit" onClick={() => editAccount(a)}><Pencil size={14}/></button><button className="danger" title="Delete" onClick={() => deleteAccount(a)}><Trash2 size={14}/></button></>}</span>
             </div>
           ))}
         </div>
@@ -411,6 +433,7 @@ export default function AccountingView({
               <span>Description</span>
               <span>Amount</span>
               <span>Status</span>
+              <span>Actions</span>
             </div>
             {entries.map((e) => (
               <div className="history-row" key={e.id}>
@@ -430,6 +453,7 @@ export default function AccountingView({
                   <CheckCircle2 size={14} />
                   {e.status}
                 </span>
+                <span className="row-actions">{e.status === "posted" && <button title="Reverse entry" onClick={() => reverseEntry(e)}><RotateCcw size={14}/></button>}{e.status === "draft" && <button className="danger" title="Delete draft" onClick={async () => { if(confirm("Delete this draft journal?")){ const r=await supabase.from("journal_entries").delete().eq("id",e.id); if(r.error)setMessage(r.error.message); else loadEntries(); } }}><Trash2 size={14}/></button>}</span>
               </div>
             ))}
           </div>

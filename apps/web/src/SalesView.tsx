@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { FilePlus2, Plus, Trash2, UserPlus, X } from "lucide-react";
+import { FilePlus2, Pencil, Plus, RotateCcw, Trash2, UserPlus, X } from "lucide-react";
 import { supabase } from "./lib/supabase";
 type Branch = { id: string; name: string; active: boolean };
 type Contact = {
@@ -57,6 +57,7 @@ export default function SalesView({
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [customerOpen, setCustomerOpen] = useState(false);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [editingInvoiceId, setEditingInvoiceId] = useState("");
   const [message, setMessage] = useState("");
   const [customer, setCustomer] = useState({
     name: "",
@@ -166,21 +167,19 @@ export default function SalesView({
       old.map((l, i) => (i === index ? { ...l, [key]: value } : l)),
     );
   }
-  async function postInvoice(e: React.FormEvent) {
-    e.preventDefault();
+  async function saveInvoice(shouldPost: boolean) {
     setMessage("");
     if (!customerId || !branchId)
       return setMessage("Select a customer and branch.");
     if (lines.some((l) => !l.description || Number(l.quantity) <= 0))
       return setMessage("Every invoice line needs an item and quantity.");
     setBusy(true);
-    let invoiceId = "";
+    let invoiceId = editingInvoiceId;
+    let createdNow = false;
     try {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error("Session expired.");
-      const inv = await supabase
-        .from("sales_invoices")
-        .insert({
+      const payload = {
           company_id: companyId,
           branch_id: branchId,
           customer_id: customerId,
@@ -188,11 +187,15 @@ export default function SalesView({
           due_date: dueDate,
           reference: reference || null,
           created_by: user.user.id,
-        })
-        .select("id")
-        .single();
-      if (inv.error) throw inv.error;
-      invoiceId = inv.data.id;
+        };
+      if (editingInvoiceId) {
+        const updated = await supabase.from("sales_invoices").update(payload).eq("id", editingInvoiceId).eq("status", "draft");
+        if (updated.error) throw updated.error;
+        const removed = await supabase.from("sales_invoice_lines").delete().eq("invoice_id", editingInvoiceId); if (removed.error) throw removed.error;
+      } else {
+        const inv = await supabase.from("sales_invoices").insert(payload).select("id").single();
+        if (inv.error) throw inv.error; invoiceId = inv.data.id; createdNow = true;
+      }
       const inserted = await supabase
         .from("sales_invoice_lines")
         .insert(
@@ -206,17 +209,15 @@ export default function SalesView({
           })),
         );
       if (inserted.error) throw inserted.error;
-      const posted = await supabase.rpc("post_sales_invoice", {
-        target_invoice: invoiceId,
-      });
-      if (posted.error) throw posted.error;
+      if (shouldPost) { const posted = await supabase.rpc("post_sales_invoice", { target_invoice: invoiceId }); if (posted.error) throw posted.error; }
       setInvoiceOpen(false);
       setLines([blank()]);
       setReference("");
-      setMessage("Sales invoice posted successfully.");
+      setEditingInvoiceId("");
+      setMessage(shouldPost ? "Sales invoice posted successfully." : "Invoice draft saved successfully.");
       await load();
     } catch (error) {
-      if (invoiceId)
+      if (createdNow && invoiceId)
         await supabase.from("sales_invoices").delete().eq("id", invoiceId);
       setMessage(
         error instanceof Error ? error.message : "Unable to post invoice.",
@@ -224,6 +225,20 @@ export default function SalesView({
     } finally {
       setBusy(false);
     }
+  }
+  async function editInvoice(id: string) {
+    const [header, detail] = await Promise.all([supabase.from("sales_invoices").select("customer_id,branch_id,invoice_date,due_date,reference,status").eq("id",id).single(),supabase.from("sales_invoice_lines").select("product_id,description,quantity,unit_price,gst_rate").eq("invoice_id",id).order("id")]);
+    if (header.error || detail.error) return setMessage(header.error?.message || detail.error?.message || "Unable to load draft.");
+    if (header.data.status !== "draft") return setMessage("Only draft invoices can be edited.");
+    setEditingInvoiceId(id); setCustomerId(header.data.customer_id); setBranchId(header.data.branch_id); setDate(header.data.invoice_date); setDueDate(header.data.due_date); setReference(header.data.reference || "");
+    setLines((detail.data ?? []).map((l) => ({ productId:l.product_id || "",description:l.description,quantity:String(l.quantity),unitPrice:String(l.unit_price),gstRate:String(l.gst_rate) })));
+    setInvoiceOpen(true); setMessage("");
+  }
+  async function removeOrVoidInvoice(invoice: Invoice) {
+    const action=invoice.status === "draft" ? "delete" : "void";
+    if (!confirm(`${action === "delete" ? "Delete draft" : "Void posted"} invoice INV-${String(invoice.invoice_number).padStart(6,"0")}?`)) return;
+    const result=action === "delete" ? await supabase.from("sales_invoices").delete().eq("id",invoice.id).eq("status","draft") : await supabase.rpc("void_sales_invoice",{target_invoice:invoice.id,target_reason:"Voided by user"});
+    if(result.error)setMessage(result.error.message);else{setMessage(action === "delete" ? "Invoice draft deleted successfully." : "Invoice voided with a reversing journal.");await load();}
   }
   return (
     <div className="accounting-stack">
@@ -242,7 +257,7 @@ export default function SalesView({
             </button>
             <button
               className="primary small-button"
-              onClick={() => setInvoiceOpen((v) => !v)}
+              onClick={() => { setInvoiceOpen((v) => !v); setEditingInvoiceId(""); setLines([blank()]); }}
             >
               <FilePlus2 size={16} /> New invoice
             </button>
@@ -306,7 +321,7 @@ export default function SalesView({
           </form>
         )}
         {invoiceOpen && (
-          <form className="invoice-form" onSubmit={postInvoice}>
+          <form className="invoice-form" onSubmit={(e) => { e.preventDefault(); saveInvoice(true); }}>
             <div className="invoice-meta">
               <label>
                 Customer
@@ -466,8 +481,9 @@ export default function SalesView({
               >
                 Cancel
               </button>
+              <button type="button" className="outline" disabled={busy || totals.total <= 0} onClick={() => saveInvoice(false)}>Save draft</button>
               <button className="primary" disabled={busy || totals.total <= 0}>
-                {busy ? "Posting..." : "Post invoice"}
+                {busy ? "Saving..." : editingInvoiceId ? "Update & post" : "Post invoice"}
               </button>
             </div>
           </form>
@@ -487,6 +503,7 @@ export default function SalesView({
               <span>GST</span>
               <span>Total</span>
               <span>Status</span>
+              <span>Actions</span>
             </div>
             {invoices.map((i) => (
               <div className="sales-row" key={i.id}>
@@ -499,6 +516,7 @@ export default function SalesView({
                 <span>{pkr.format(i.gst_total)}</span>
                 <b>{pkr.format(i.total)}</b>
                 <span className="status">{i.status}</span>
+                <span className="row-actions">{i.status === "draft" && <button title="Edit draft" onClick={() => editInvoice(i.id)}><Pencil size={14}/></button>}{["draft","posted"].includes(i.status) && <button className="danger" title={i.status === "draft" ? "Delete" : "Void"} onClick={() => removeOrVoidInvoice(i)}>{i.status === "draft" ? <Trash2 size={14}/> : <RotateCcw size={14}/>}</button>}</span>
               </div>
             ))}
           </div>
