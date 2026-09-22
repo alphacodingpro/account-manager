@@ -7,6 +7,7 @@ import {
   ChevronDown,
   CircleDollarSign,
   FileText,
+  Landmark,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -30,6 +31,7 @@ import InventoryView from "./InventoryView";
 import PurchasesView from "./PurchasesView";
 import PayrollView from "./PayrollView";
 import ReportsView from "./ReportsView";
+import BankingView from "./BankingView";
 
 type Company = {
   id: string;
@@ -98,6 +100,7 @@ type ViewName =
   | "Accounting"
   | "Sales"
   | "Purchases"
+  | "Banking"
   | "Inventory"
   | "Payroll"
   | "Reports"
@@ -112,6 +115,7 @@ const nav: [ViewName, typeof LayoutDashboard][] = [
   ["Accounting", WalletCards],
   ["Sales", ReceiptText],
   ["Purchases", ShoppingCart],
+  ["Banking", Landmark],
   ["Inventory", Package],
   ["Payroll", Users],
   ["Reports", BarChart3],
@@ -829,6 +833,9 @@ function Dashboard({
           {view === "Purchases" && (
             <PurchasesView companyId={companyId} branches={branches} accounts={accounts} />
           )}{" "}
+          {view === "Banking" && (
+            <BankingView companyId={companyId} branches={branches} accounts={accounts} />
+          )}{" "}
           {view === "Inventory" && <InventoryView companyId={companyId} />}{" "}
           {view === "Payroll" && <PayrollView companyId={companyId} branches={branches} />}{" "}
           {view === "Reports" && <ReportsView companyId={companyId} />}{" "}
@@ -844,6 +851,7 @@ function Dashboard({
             "Accounting",
             "Sales",
             "Purchases",
+            "Banking",
             "Inventory",
             "Payroll",
             "Reports",

@@ -15,7 +15,8 @@
 - [x] Customers and GST sales invoices
 - [x] Automatic receivable, sales and output-GST journal posting
 - [ ] Suppliers, quotations and orders
-- [ ] Receipts, bills, payments, credit/debit notes
+- [x] Bills, customer receipts and supplier payments with safe reversal
+- [ ] Credit/debit notes and sales quotations/orders
 - Receivable/payable aging and PDF documents
 
 ## Milestone 3 — Inventory
@@ -29,6 +30,12 @@
 - [x] Live dashboard balances, monthly trend and recent transactions
 - General Ledger, Trial Balance, Profit & Loss, Balance Sheet and Cash Flow
 - Branch comparison, dashboard drill-down and CSV/Excel export
+
+## Milestone 4.5 — Banking
+
+- [x] Bank account setup and cash/bank receipt/payment entry
+- [x] Draft posting, document allocation and audit-safe payment reversal
+- Bank statement import, matching and reconciliation workflow
 
 ## Milestone 5 — Payroll
 
