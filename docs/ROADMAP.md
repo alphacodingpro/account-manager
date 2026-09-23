@@ -35,7 +35,8 @@
 
 - [x] Bank account setup and cash/bank receipt/payment entry
 - [x] Draft posting, document allocation and audit-safe payment reversal
-- Bank statement import, matching and reconciliation workflow
+- [x] Bank statement CSV import, duplicate detection and payment matching
+- [x] Controlled reconcile/unreconcile workflow with audit history
 
 ## Milestone 5 — Payroll
 
