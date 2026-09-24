@@ -29,7 +29,8 @@
 
 - [x] Live dashboard balances, monthly trend and recent transactions
 - [x] General Ledger, Trial Balance, Profit & Loss, Balance Sheet and direct-method Cash Flow
-- Branch comparison, dashboard drill-down and CSV/Excel export
+- [x] Excel-compatible CSV export and print/PDF-ready financial reports
+- Branch comparison and dashboard drill-down
 
 ## Milestone 4.5 — Banking
 
