@@ -32,6 +32,7 @@ import PurchasesView from "./PurchasesView";
 import PayrollView from "./PayrollView";
 import ReportsView from "./ReportsView";
 import BankingView from "./BankingView";
+import TeamAccessView from "./TeamAccessView";
 
 type Company = {
   id: string;
@@ -127,16 +128,16 @@ function Login({ onDemo }: { onDemo: () => void }) {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [createAccount, setCreateAccount] = useState(false);
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!isSupabaseConfigured)
       return setMessage("Supabase environment variables are missing.");
     setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    setMessage(error?.message ?? "");
+    const result = createAccount
+      ? await supabase.auth.signUp({ email, password })
+      : await supabase.auth.signInWithPassword({ email, password });
+    setMessage(result.error?.message ?? (createAccount && !result.data.session ? "Check your email to confirm your account, then sign in." : ""));
     setBusy(false);
   }
   return (
@@ -156,8 +157,8 @@ function Login({ onDemo }: { onDemo: () => void }) {
       <section className="login-card">
         <div>
           <p className="eyebrow">WELCOME BACK</p>
-          <h2>Sign in to your account</h2>
-          <p className="muted">Use your company email and password.</p>
+          <h2>{createAccount ? "Create your account" : "Sign in to your account"}</h2>
+          <p className="muted">{createAccount ? "Use the same email where your company invitation was sent." : "Use your company email and password."}</p>
         </div>
         <form onSubmit={submit}>
           <label>
@@ -181,10 +182,13 @@ function Login({ onDemo }: { onDemo: () => void }) {
             />
           </label>
           <button className="primary" disabled={busy}>
-            {busy ? "Signing in..." : "Sign in"}
+            {busy ? "Please wait..." : createAccount ? "Create account" : "Sign in"}
           </button>
         </form>
         {message && <p className="form-message error">{message}</p>}
+        <button className="demo" onClick={() => { setCreateAccount((value) => !value); setMessage(""); }}>
+          {createAccount ? "Already registered? Sign in" : "New invited user? Create account"}
+        </button>
         <button className="demo" onClick={onDemo}>
           Preview dashboard
         </button>
@@ -566,6 +570,7 @@ function SettingsView({
           ))}
         </div>
       </article>
+      <TeamAccessView companyId={company.id} />
     </div>
   );
 }
@@ -630,6 +635,7 @@ function Dashboard({
       return;
     }
     setLoading(true);
+    await supabase.rpc("accept_my_company_invitations");
     const result = await supabase
       .from("companies")
       .select("id,name,legal_name,currency_code,ntn,strn,gst_registered")

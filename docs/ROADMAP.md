@@ -8,7 +8,7 @@
 - [x] Chart of Accounts and balanced journal engine foundation
 - [x] Custom accounts, journal posting and transaction history
 - [x] Responsive white/blue application shell
-- [ ] Company invitations and permission editor
+- [x] Owner-controlled company invitations and company-level permission editor
 
 ## Milestone 2 — Sales and purchases
 
