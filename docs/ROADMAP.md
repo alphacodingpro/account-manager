@@ -9,6 +9,7 @@
 - [x] Custom accounts, journal posting and transaction history
 - [x] Responsive white/blue application shell
 - [x] Owner-controlled company invitations and company-level permission editor
+- [x] Least-privilege Sales Staff role with backend enforcement and restricted navigation
 
 ## Milestone 2 — Sales and purchases
 

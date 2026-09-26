@@ -106,6 +106,7 @@ type ViewName =
   | "Payroll"
   | "Reports"
   | "Settings";
+type AccessRole = "owner" | "admin" | "accountant" | "sales" | "viewer" | "custom";
 const money = new Intl.NumberFormat("en-PK", {
   style: "currency",
   currency: "PKR",
@@ -606,6 +607,7 @@ function Dashboard({
   const [companyBusy, setCompanyBusy] = useState(false);
   const [loading, setLoading] = useState(!demo);
   const [error, setError] = useState("");
+  const [accessRole, setAccessRole] = useState<AccessRole | null>(demo ? "owner" : null);
   const company = companies.find((c) => c.id === companyId);
   async function loadCompanies(preferred?: string) {
     if (demo) {
@@ -650,7 +652,7 @@ function Dashboard({
   }
   async function loadCompanyData() {
     if (!companyId || demo) return;
-    const [b, a, s] = await Promise.all([
+    const [b, a, s, roleResult] = await Promise.all([
       supabase
         .from("branches")
         .select("id,code,name,city,active")
@@ -662,18 +664,24 @@ function Dashboard({
         .eq("company_id", companyId)
         .order("code"),
       supabase.rpc("get_dashboard_summary", { target_company: companyId }),
+      supabase.rpc("get_my_company_role", { target_company: companyId }),
     ]);
-    if (b.error || a.error || s.error)
+    if (b.error || a.error || s.error || roleResult.error)
       setError(
         b.error?.message ||
           a.error?.message ||
           s.error?.message ||
+          roleResult.error?.message ||
           "Unable to load company",
       );
     else {
       setBranches(b.data ?? []);
       setAccounts((a.data ?? []) as Account[]);
       setSummary((s.data as DashboardSummary) ?? emptySummary);
+      const nextRole = roleResult.data as AccessRole;
+      setAccessRole(nextRole);
+      if (nextRole === "sales" && !["Overview", "Sales", "Reports"].includes(view)) setView("Overview");
+      if (nextRole === "viewer" && !["Overview", "Reports"].includes(view)) setView("Overview");
     }
   }
   async function createAdditionalCompany(e: React.FormEvent) {
@@ -751,7 +759,7 @@ function Dashboard({
           </form>
         )}
         <nav>
-          {nav.map(([name, Icon]) => (
+          {nav.filter(([name]) => accessRole !== "sales" || ["Overview", "Sales", "Reports"].includes(name)).filter(([name]) => accessRole !== "viewer" || ["Overview", "Reports"].includes(name)).map(([name, Icon]) => (
             <button
               className={view === name ? "active" : ""}
               onClick={() => {
@@ -798,9 +806,9 @@ function Dashboard({
             <Bell />
             <i />
           </button>
-          <button className="new-button" onClick={() => setView("Accounting")}>
+          {accessRole !== "viewer" && <button className="new-button" onClick={() => setView(accessRole === "sales" ? "Sales" : "Accounting")}>
             <Sparkles size={16} /> Quick entry
-          </button>
+          </button>}
         </header>
         <section className="page">
           <div className="page-title">

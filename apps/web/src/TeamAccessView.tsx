@@ -3,12 +3,12 @@ import { ShieldCheck, UserPlus, UserRoundCheck, X } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import "./TeamAccessView.css";
 
-type Role = "owner" | "admin" | "accountant" | "viewer";
+type Role = "owner" | "admin" | "accountant" | "sales" | "viewer";
 type Member = { user_id: string; full_name: string; email: string; role: Role; active: boolean; joined_at: string };
 type Invitation = { id: string; email: string; role: Exclude<Role, "owner">; expires_at: string; created_at: string };
-const editableRoles: Role[] = ["owner", "admin", "accountant", "viewer"];
-const inviteRoles: Exclude<Role, "owner">[] = ["admin", "accountant", "viewer"];
-const roleLabel: Record<Role, string> = { owner: "Owner", admin: "Manager", accountant: "Accountant", viewer: "Read-only staff" };
+const editableRoles: Role[] = ["owner", "admin", "accountant", "sales", "viewer"];
+const inviteRoles: Exclude<Role, "owner">[] = ["admin", "accountant", "sales", "viewer"];
+const roleLabel: Record<Role, string> = { owner: "Owner", admin: "Manager", accountant: "Accountant", sales: "Sales staff", viewer: "Read-only staff" };
 
 export default function TeamAccessView({ companyId }: { companyId: string }) {
   const [isOwner, setIsOwner] = useState(false);
