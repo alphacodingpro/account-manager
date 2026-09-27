@@ -681,6 +681,7 @@ function Dashboard({
       const nextRole = roleResult.data as AccessRole;
       setAccessRole(nextRole);
       if (nextRole === "sales" && !["Overview", "Sales", "Reports"].includes(view)) setView("Overview");
+      if (nextRole === "purchases" && !["Overview", "Purchases", "Reports"].includes(view)) setView("Overview");
       if (nextRole === "viewer" && !["Overview", "Reports"].includes(view)) setView("Overview");
     }
   }
