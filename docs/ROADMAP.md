@@ -10,6 +10,7 @@
 - [x] Responsive white/blue application shell
 - [x] Owner-controlled company invitations and company-level permission editor
 - [x] Least-privilege Sales Staff role with backend enforcement and restricted navigation
+- [x] Least-privilege Purchase Staff role with supplier, bill posting and reversal controls
 
 ## Milestone 2 — Sales and purchases
 
