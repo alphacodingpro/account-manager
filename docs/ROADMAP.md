@@ -11,6 +11,7 @@
 - [x] Owner-controlled company invitations and company-level permission editor
 - [x] Least-privilege Sales Staff role with backend enforcement and restricted navigation
 - [x] Least-privilege Purchase Staff role with supplier, bill posting and reversal controls
+- [x] Least-privilege Inventory Staff role with append-only adjustments and warehouse transfers
 
 ## Milestone 2 — Sales and purchases
 
@@ -24,8 +25,8 @@
 ## Milestone 3 — Inventory
 
 - [x] Products, services, prices, units and reorder levels
-- [ ] Warehouses and branch stock
-- Average-cost valuation, transfers, adjustments and reorder alerts
+- [x] Warehouses, branch stock, transfers, adjustments and reorder alerts
+- Average-cost valuation
 
 ## Milestone 4 — Reporting
 

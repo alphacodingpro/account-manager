@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Package, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ArrowRightLeft, Package, Pencil, Plus, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { supabase } from "./lib/supabase";
 type Product = {
   id: string;
@@ -14,15 +14,22 @@ type Product = {
   reorder_level: number;
   active: boolean;
 };
+type Warehouse = { id: string; name: string; branch_id: string };
+type Movement = { id: string; movement_type: string; movement_date: string; quantity: number; reference: string | null; products: { name: string } | null; warehouses: { name: string } | null };
 const pkr = new Intl.NumberFormat("en-PK", {
   style: "currency",
   currency: "PKR",
 });
 export default function InventoryView({ companyId }: { companyId: string }) {
   const [products, setProducts] = useState<Product[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [movements, setMovements] = useState<Movement[]>([]);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState("");
   const [message, setMessage] = useState("");
+  const [stockBusy, setStockBusy] = useState(false);
+  const [adjustment, setAdjustment] = useState({ productId: "", warehouseId: "", quantity: "", direction: "increase", reference: "" });
+  const [transfer, setTransfer] = useState({ productId: "", sourceId: "", destinationId: "", quantity: "", reference: "" });
   const [form, setForm] = useState({
     sku: "",
     name: "",
@@ -34,13 +41,18 @@ export default function InventoryView({ companyId }: { companyId: string }) {
     is_service: false,
   });
   async function load() {
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .eq("company_id", companyId)
-      .order("name");
+    const [productResult, warehouseResult, movementResult] = await Promise.all([
+      supabase.from("products").select("*").eq("company_id", companyId).order("name"),
+      supabase.from("warehouses").select("id,name,branch_id").eq("company_id", companyId).eq("active", true).order("name"),
+      supabase.from("stock_movements").select("id,movement_type,movement_date,quantity,reference,products(name),warehouses(name)").eq("company_id", companyId).order("created_at", { ascending: false }).limit(12),
+    ]);
+    const error = productResult.error ?? warehouseResult.error ?? movementResult.error;
     if (error) setMessage(error.message);
-    else setProducts((data ?? []) as Product[]);
+    else {
+      setProducts((productResult.data ?? []) as Product[]);
+      setWarehouses((warehouseResult.data ?? []) as Warehouse[]);
+      setMovements((movementResult.data ?? []) as unknown as Movement[]);
+    }
   }
   useEffect(() => {
     load();
@@ -91,6 +103,20 @@ export default function InventoryView({ companyId }: { companyId: string }) {
     const result = await supabase.from("products").delete().eq("id", product.id).eq("company_id", companyId);
     if (result.error) setMessage("This item is already used in a transaction and cannot be deleted. Edit it or mark it inactive instead.");
     else { setMessage("Product deleted successfully."); await load(); }
+  }
+  async function saveAdjustment(e: React.FormEvent) {
+    e.preventDefault(); setStockBusy(true); setMessage("");
+    const { error } = await supabase.rpc("record_stock_adjustment", { target_company: companyId, target_warehouse: adjustment.warehouseId, target_product: adjustment.productId, target_quantity: Number(adjustment.quantity), target_increase: adjustment.direction === "increase", target_reference: adjustment.reference.trim() });
+    setMessage(error?.message ?? "Stock adjustment recorded successfully.");
+    if (!error) { setAdjustment({ productId: "", warehouseId: "", quantity: "", direction: "increase", reference: "" }); await load(); }
+    setStockBusy(false);
+  }
+  async function saveTransfer(e: React.FormEvent) {
+    e.preventDefault(); setStockBusy(true); setMessage("");
+    const { error } = await supabase.rpc("record_stock_transfer", { target_company: companyId, source_warehouse: transfer.sourceId, destination_warehouse: transfer.destinationId, target_product: transfer.productId, target_quantity: Number(transfer.quantity), target_reference: transfer.reference.trim() });
+    setMessage(error?.message ?? "Warehouse transfer recorded successfully.");
+    if (!error) { setTransfer({ productId: "", sourceId: "", destinationId: "", quantity: "", reference: "" }); await load(); }
+    setStockBusy(false);
   }
   return (
     <div className="accounting-stack">
@@ -242,6 +268,29 @@ export default function InventoryView({ companyId }: { companyId: string }) {
             ))}
           </div>
         )}
+      </article>
+      <article className="panel data-panel">
+        <div className="panel-head"><div><h3>Stock operations</h3><p>Append-only adjustments and warehouse transfers</p></div><SlidersHorizontal /></div>
+        <form className="product-form" onSubmit={saveAdjustment}>
+          <label>Product<select value={adjustment.productId} onChange={(e) => setAdjustment({ ...adjustment, productId: e.target.value })} required><option value="">Select product</option>{products.filter((p) => !p.is_service && p.active).map((p) => <option key={p.id} value={p.id}>{p.sku} · {p.name} ({p.quantity_on_hand})</option>)}</select></label>
+          <label>Warehouse<select value={adjustment.warehouseId} onChange={(e) => setAdjustment({ ...adjustment, warehouseId: e.target.value })} required><option value="">Select warehouse</option>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
+          <label>Direction<select value={adjustment.direction} onChange={(e) => setAdjustment({ ...adjustment, direction: e.target.value })}><option value="increase">Stock in</option><option value="decrease">Stock out</option></select></label>
+          <label>Quantity<input type="number" min="0.001" step="0.001" value={adjustment.quantity} onChange={(e) => setAdjustment({ ...adjustment, quantity: e.target.value })} required/></label>
+          <label>Reference<input value={adjustment.reference} onChange={(e) => setAdjustment({ ...adjustment, reference: e.target.value })} placeholder="Count sheet / reason" required/></label>
+          <button className="primary" disabled={stockBusy}><SlidersHorizontal size={16}/>{stockBusy ? "Recording…" : "Record adjustment"}</button>
+        </form>
+        {warehouses.length > 1 && <form className="product-form" onSubmit={saveTransfer}>
+          <label>Product<select value={transfer.productId} onChange={(e) => setTransfer({ ...transfer, productId: e.target.value })} required><option value="">Select product</option>{products.filter((p) => !p.is_service && p.active).map((p) => <option key={p.id} value={p.id}>{p.sku} · {p.name}</option>)}</select></label>
+          <label>From<select value={transfer.sourceId} onChange={(e) => setTransfer({ ...transfer, sourceId: e.target.value })} required><option value="">Source warehouse</option>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
+          <label>To<select value={transfer.destinationId} onChange={(e) => setTransfer({ ...transfer, destinationId: e.target.value })} required><option value="">Destination warehouse</option>{warehouses.filter((w) => w.id !== transfer.sourceId).map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
+          <label>Quantity<input type="number" min="0.001" step="0.001" value={transfer.quantity} onChange={(e) => setTransfer({ ...transfer, quantity: e.target.value })} required/></label>
+          <label>Reference<input value={transfer.reference} onChange={(e) => setTransfer({ ...transfer, reference: e.target.value })} placeholder="Transfer note number" required/></label>
+          <button className="primary" disabled={stockBusy}><ArrowRightLeft size={16}/>{stockBusy ? "Transferring…" : "Transfer stock"}</button>
+        </form>}
+        <div className="inventory-table">
+          <div className="inventory-row data-heading"><span>Date</span><span>Item</span><span>Warehouse</span><span>Movement</span><span>Quantity</span><span>Reference</span><span></span></div>
+          {movements.map((movement) => <div className="inventory-row" key={movement.id}><span>{new Date(movement.movement_date).toLocaleDateString("en-PK")}</span><span><b>{movement.products?.name ?? "Product"}</b></span><span>{movement.warehouses?.name ?? "Warehouse"}</span><span>{movement.movement_type.replaceAll("_", " ")}</span><span>{movement.quantity}</span><span>{movement.reference ?? "—"}</span><span></span></div>)}
+        </div>
       </article>
     </div>
   );
