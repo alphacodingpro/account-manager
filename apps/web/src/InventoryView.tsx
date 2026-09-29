@@ -9,6 +9,7 @@ type Product = {
   unit: string;
   sale_price: number;
   purchase_price: number;
+  average_cost: number;
   gst_rate: number;
   quantity_on_hand: number;
   reorder_level: number;
@@ -16,6 +17,7 @@ type Product = {
 };
 type Warehouse = { id: string; name: string; branch_id: string };
 type Movement = { id: string; movement_type: string; movement_date: string; quantity: number; reference: string | null; products: { name: string } | null; warehouses: { name: string } | null };
+type StockBalance = { warehouse_id: string; warehouse_name: string; product_id: string; sku: string; product_name: string; quantity: number; average_cost: number; stock_value: number };
 const pkr = new Intl.NumberFormat("en-PK", {
   style: "currency",
   currency: "PKR",
@@ -24,6 +26,7 @@ export default function InventoryView({ companyId }: { companyId: string }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
+  const [stockBalances, setStockBalances] = useState<StockBalance[]>([]);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState("");
   const [message, setMessage] = useState("");
@@ -41,17 +44,19 @@ export default function InventoryView({ companyId }: { companyId: string }) {
     is_service: false,
   });
   async function load() {
-    const [productResult, warehouseResult, movementResult] = await Promise.all([
+    const [productResult, warehouseResult, movementResult, balanceResult] = await Promise.all([
       supabase.from("products").select("*").eq("company_id", companyId).order("name"),
       supabase.from("warehouses").select("id,name,branch_id").eq("company_id", companyId).eq("active", true).order("name"),
       supabase.from("stock_movements").select("id,movement_type,movement_date,quantity,reference,products(name),warehouses(name)").eq("company_id", companyId).order("created_at", { ascending: false }).limit(12),
+      supabase.rpc("get_inventory_stock", { target_company: companyId }),
     ]);
-    const error = productResult.error ?? warehouseResult.error ?? movementResult.error;
+    const error = productResult.error ?? warehouseResult.error ?? movementResult.error ?? balanceResult.error;
     if (error) setMessage(error.message);
     else {
       setProducts((productResult.data ?? []) as Product[]);
       setWarehouses((warehouseResult.data ?? []) as Warehouse[]);
       setMovements((movementResult.data ?? []) as unknown as Movement[]);
+      setStockBalances((balanceResult.data ?? []) as StockBalance[]);
     }
   }
   useEffect(() => {
@@ -240,7 +245,7 @@ export default function InventoryView({ companyId }: { companyId: string }) {
               <span>Item</span>
               <span>Type</span>
               <span>Sale price</span>
-              <span>GST</span>
+              <span>Avg. cost</span>
               <span>Stock</span>
               <span>Actions</span>
             </div>
@@ -253,7 +258,7 @@ export default function InventoryView({ companyId }: { companyId: string }) {
                 </span>
                 <span>{p.is_service ? "Service" : "Product"}</span>
                 <span>{pkr.format(p.sale_price)}</span>
-                <span>{p.gst_rate}%</span>
+                <span>{p.is_service ? "—" : pkr.format(p.average_cost)}</span>
                 <span
                   className={
                     !p.is_service && p.quantity_on_hand <= p.reorder_level
@@ -268,6 +273,13 @@ export default function InventoryView({ companyId }: { companyId: string }) {
             ))}
           </div>
         )}
+      </article>
+      <article className="panel data-panel">
+        <div className="panel-head"><div><h3>Warehouse stock ledger</h3><p>Live quantity and weighted-average valuation</p></div><Package /></div>
+        {stockBalances.length === 0 ? <div className="mini-empty"><Package/><p>No warehouse stock movements yet.</p></div> : <div className="inventory-table">
+          <div className="inventory-row data-heading"><span>Warehouse</span><span>SKU</span><span>Item</span><span>Quantity</span><span>Average cost</span><span>Stock value</span><span></span></div>
+          {stockBalances.map((row) => <div className="inventory-row" key={`${row.warehouse_id}-${row.product_id}`}><span><b>{row.warehouse_name}</b></span><span className="code">{row.sku}</span><span>{row.product_name}</span><span>{row.quantity}</span><span>{pkr.format(row.average_cost)}</span><span><b>{pkr.format(row.stock_value)}</b></span><span></span></div>)}
+        </div>}
       </article>
       <article className="panel data-panel">
         <div className="panel-head"><div><h3>Stock operations</h3><p>Append-only adjustments and warehouse transfers</p></div><SlidersHorizontal /></div>

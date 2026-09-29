@@ -26,7 +26,7 @@
 
 - [x] Products, services, prices, units and reorder levels
 - [x] Warehouses, branch stock, transfers, adjustments and reorder alerts
-- Average-cost valuation
+- [x] Weighted-average valuation with warehouse-wise stock ledger
 
 ## Milestone 4 — Reporting
 
