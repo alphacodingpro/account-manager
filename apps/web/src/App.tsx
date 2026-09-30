@@ -106,7 +106,7 @@ type ViewName =
   | "Payroll"
   | "Reports"
   | "Settings";
-type AccessRole = "owner" | "admin" | "accountant" | "sales" | "purchases" | "inventory" | "viewer" | "custom";
+type AccessRole = "owner" | "admin" | "accountant" | "sales" | "purchases" | "inventory" | "payroll" | "viewer" | "custom";
 const money = new Intl.NumberFormat("en-PK", {
   style: "currency",
   currency: "PKR",
@@ -683,6 +683,7 @@ function Dashboard({
       if (nextRole === "sales" && !["Overview", "Sales", "Reports"].includes(view)) setView("Overview");
       if (nextRole === "purchases" && !["Overview", "Purchases", "Reports"].includes(view)) setView("Overview");
       if (nextRole === "inventory" && !["Overview", "Inventory", "Reports"].includes(view)) setView("Overview");
+      if (nextRole === "payroll" && !["Overview", "Payroll", "Reports"].includes(view)) setView("Overview");
       if (nextRole === "viewer" && !["Overview", "Reports"].includes(view)) setView("Overview");
     }
   }
@@ -761,7 +762,7 @@ function Dashboard({
           </form>
         )}
         <nav>
-          {nav.filter(([name]) => accessRole !== "sales" || ["Overview", "Sales", "Reports"].includes(name)).filter(([name]) => accessRole !== "purchases" || ["Overview", "Purchases", "Reports"].includes(name)).filter(([name]) => accessRole !== "inventory" || ["Overview", "Inventory", "Reports"].includes(name)).filter(([name]) => accessRole !== "viewer" || ["Overview", "Reports"].includes(name)).map(([name, Icon]) => (
+          {nav.filter(([name]) => accessRole !== "sales" || ["Overview", "Sales", "Reports"].includes(name)).filter(([name]) => accessRole !== "purchases" || ["Overview", "Purchases", "Reports"].includes(name)).filter(([name]) => accessRole !== "inventory" || ["Overview", "Inventory", "Reports"].includes(name)).filter(([name]) => accessRole !== "payroll" || ["Overview", "Payroll", "Reports"].includes(name)).filter(([name]) => accessRole !== "viewer" || ["Overview", "Reports"].includes(name)).map(([name, Icon]) => (
             <button
               className={view === name ? "active" : ""}
               onClick={() => {
@@ -808,7 +809,7 @@ function Dashboard({
             <Bell />
             <i />
           </button>
-          {accessRole !== "viewer" && <button className="new-button" onClick={() => setView(accessRole === "sales" ? "Sales" : accessRole === "purchases" ? "Purchases" : accessRole === "inventory" ? "Inventory" : "Accounting")}>
+          {accessRole !== "viewer" && <button className="new-button" onClick={() => setView(accessRole === "sales" ? "Sales" : accessRole === "purchases" ? "Purchases" : accessRole === "inventory" ? "Inventory" : accessRole === "payroll" ? "Payroll" : "Accounting")}>
             <Sparkles size={16} /> Quick entry
           </button>}
         </header>

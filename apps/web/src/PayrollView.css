@@ -1,0 +1,14 @@
+.payroll-workflow-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.compact-payroll-form { grid-template-columns: repeat(2, 1fr); }
+.payroll-check { display: flex !important; align-items: center; gap: 8px; padding: 10px; }
+.payroll-check input { width: auto !important; }
+.compact-list { display: grid; margin-top: 15px; }
+.compact-list > div { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-top: 1px solid #edf2f6; padding: 12px 4px; font-size: 12px; }
+.compact-list span:first-child { display: grid; gap: 3px; }
+.compact-list small { color: #789; }
+.leave-actions { display: flex; align-items: center; gap: 6px; }
+.leave-actions button { border: 0; border-radius: 7px; padding: 6px; background: #edf6fe; color: #2479bd; }
+.leave-actions button:last-child, .danger-action { color: #b83232 !important; }
+.danger-action { border-color: #e8bcbc !important; }
+@media (max-width: 900px) { .payroll-workflow-grid { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .compact-payroll-form { grid-template-columns: 1fr; } }
