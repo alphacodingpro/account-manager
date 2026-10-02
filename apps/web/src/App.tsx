@@ -848,7 +848,7 @@ function Dashboard({
             <SalesView companyId={companyId} branches={branches} />
           )}{" "}
           {view === "Purchases" && (
-            <PurchasesView companyId={companyId} branches={branches} accounts={accounts} />
+            <PurchasesView companyId={companyId} branches={branches} accounts={accounts} onAccountsChanged={loadCompanyData} />
           )}{" "}
           {view === "Banking" && (
             <BankingView companyId={companyId} branches={branches} accounts={accounts} />
