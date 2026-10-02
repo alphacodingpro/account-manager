@@ -6,8 +6,11 @@ export type ExtractedBill = {
   subtotal: number | null;
   gst: number | null;
   total: number | null;
+  items: ExtractedItem[];
   warnings: string[];
 };
+
+export type ExtractedItem = { description: string; quantity: number; unitPrice: number; amount: number };
 
 const amount = (value: string) => {
   const parsed = Number(value.replace(/[,\s]/g, ""));
@@ -35,6 +38,27 @@ function dateFrom(text: string): string {
     ? `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}` : "";
 }
 
+// Deliberately conservative: OCR/PDF layouts vary. Only accept rows whose
+// quantity × unit price reproduces the printed amount within one paisa.
+export function extractItemRows(text: string): ExtractedItem[] {
+  const items: ExtractedItem[] = [];
+  const number = "(\\d[\\d,]*(?:\\.\\d{1,2})?)";
+  const row = new RegExp(`^(.{3,}?)\\s+(\\d+(?:\\.\\d{1,3})?)\\s+(?:PKR|Rs\\.?|₨)?\\s*${number}\\s+(?:PKR|Rs\\.?|₨)?\\s*${number}$`, "i");
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.replace(/\s+/g, " ").trim();
+    if (/\b(subtotal|grand total|invoice total|amount due|total payable|balance|discount|sales tax|gst|vat)\b/i.test(line)) continue;
+    const match = line.match(row);
+    if (!match) continue;
+    const description = match[1].replace(/^(?:\d+[.)-]?\s+|item\s*\d+\s+)/i, "").trim();
+    const quantity = Number(match[2]);
+    const unitPrice = amount(match[3]);
+    const printedAmount = amount(match[4]);
+    if (!description || !Number.isFinite(quantity) || quantity <= 0 || unitPrice === null || printedAmount === null || Math.abs(Math.round(quantity * unitPrice * 100) / 100 - printedAmount) > 0.01) continue;
+    items.push({ description, quantity, unitPrice, amount: printedAmount });
+  }
+  return items;
+}
+
 export function extractBillFields(text: string): ExtractedBill {
   const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const subtotal = labelledAmount(lines, /(?:sub\s*total|taxable\s*(?:amount|value))\s*[:=\-]?\s*(?:pkr|rs\.?|₨)?/i);
@@ -43,13 +67,17 @@ export function extractBillFields(text: string): ExtractedBill {
   const supplier = lines.find((line) => /^(?:supplier|vendor|from)\s*:/i.test(line))?.replace(/^[^:]+:\s*/, "").trim() ?? "";
   const reference = text.match(/(?:invoice|bill)\s*(?:no\.?|number|#)\s*[:#-]?\s*([a-z\d/-]+)/i)?.[1] ?? "";
   const warnings: string[] = [];
+  const items = extractItemRows(text);
+  if (!items.length) warnings.push("No item rows could be matched reliably. Add each invoice item manually from the original document.");
+  else if (subtotal !== null && Math.abs(items.reduce((sum, item) => sum + item.amount, 0) - subtotal) > 0.02)
+    warnings.push("Detected item rows do not match the printed subtotal. Check for missing items, discounts or OCR errors.");
   if (!supplier) warnings.push("Supplier could not be identified. Choose the correct supplier.");
   if (!dateFrom(text)) warnings.push("Invoice date could not be verified. Check the date.");
   if (subtotal === null || total === null) warnings.push("Subtotal or grand total is missing. Enter amounts manually.");
   if (subtotal !== null && total !== null && Math.abs(subtotal + (gst ?? 0) - total) > 0.02)
     warnings.push("Extracted subtotal, GST and total do not balance. Correct them before saving.");
   if (gst === null) warnings.push("GST was not identified. Confirm whether the invoice includes GST.");
-  return { text, supplier, invoiceDate: dateFrom(text), reference, subtotal, gst, total, warnings };
+  return { text, supplier, invoiceDate: dateFrom(text), reference, subtotal, gst, total, items, warnings };
 }
 
 export function reviewedAmounts(subtotal: number, gst: number, total: number): { rate: number; error: string } {
@@ -83,7 +111,15 @@ export async function readDocument(file: File): Promise<string> {
     for (let index = 1; index <= pdf.numPages; index++) {
       const page = await pdf.getPage(index);
       const content = await page.getTextContent();
-      const text = content.items.map((item) => "str" in item ? item.str + (item.hasEOL ? "\n" : " ") : "").join("");
+      const rows: { y: number; parts: { x: number; value: string }[] }[] = [];
+      for (const item of content.items) {
+        if (!("str" in item) || !item.str.trim()) continue;
+        const [x, y] = [item.transform[4], item.transform[5]];
+        let row = rows.find((candidate) => Math.abs(candidate.y - y) <= 2);
+        if (!row) { row = { y, parts: [] }; rows.push(row); }
+        row.parts.push({ x, value: item.str });
+      }
+      const text = rows.sort((a, b) => b.y - a.y).map((row) => row.parts.sort((a, b) => a.x - b.x).map((part) => part.value).join(" ")).join("\n");
       if (text.trim().length > 25) pages.push(text);
       else {
         const viewport = page.getViewport({ scale: 2 });

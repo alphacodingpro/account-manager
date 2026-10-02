@@ -79,7 +79,7 @@ export default function PurchasesView({ companyId, branches, accounts, onAccount
   }
   function applyImportedDocument(reviewed: ReviewedDocument) {
     setSupplierId(reviewed.supplierId); setDate(reviewed.date); setDueDate(reviewed.date); setReference(reviewed.reference);
-    setLines([{ productId: "", accountId: reviewed.accountId, description: reviewed.description, quantity: "1", unitPrice: reviewed.subtotal.toFixed(2), gstRate: String(reviewed.gstRate) }]);
+    setLines(reviewed.lines.map((line) => ({ productId: "", accountId: line.accountId, description: line.description, quantity: String(line.quantity), unitPrice: line.unitPrice.toFixed(2), gstRate: String(line.gstRate) })));
     setEditingBillId(""); setImportedDraft(true); setImportSource(reviewed.sourceName); setDraftNotes(null); setBillOpen(true); setImportOpen(false);
     setMessage(`Values reviewed from ${reviewed.sourceName}. Check due date and bill lines, then save a draft.`);
   }

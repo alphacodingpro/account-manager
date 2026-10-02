@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { FileSearch, UploadCloud } from "lucide-react";
+import { FileSearch, Plus, Trash2, UploadCloud } from "lucide-react";
 import { extractBillFields, readDocument, reviewedAmounts, type ExtractedBill } from "./lib/documentImport";
 import "./DocumentImport.css";
 
 type Supplier = { id: string; name: string };
 type Account = { id: string; code: string; name: string; type: string; active: boolean };
-export type ReviewedDocument = { supplierId: string; date: string; reference: string; description: string; accountId: string; subtotal: number; gstRate: number; sourceName: string };
+type ReviewedLine = { description: string; quantity: string; unitPrice: string; gstRate: string; accountId: string };
+export type ReviewedDocument = { supplierId: string; date: string; reference: string; lines: { description: string; quantity: number; unitPrice: number; gstRate: number; accountId: string }[]; sourceName: string };
 
 export default function DocumentImport({ suppliers, accounts, onApply, onCreateAccount }: {
   suppliers: Supplier[]; accounts: Account[]; onApply: (data: ReviewedDocument) => void;
@@ -16,8 +17,7 @@ export default function DocumentImport({ suppliers, accounts, onApply, onCreateA
   const [supplierId, setSupplierId] = useState("");
   const [date, setDate] = useState("");
   const [reference, setReference] = useState("");
-  const [description, setDescription] = useState("");
-  const [accountId, setAccountId] = useState("");
+  const [lines, setLines] = useState<ReviewedLine[]>([]);
   const [subtotal, setSubtotal] = useState("");
   const [gst, setGst] = useState("");
   const [total, setTotal] = useState("");
@@ -25,7 +25,14 @@ export default function DocumentImport({ suppliers, accounts, onApply, onCreateA
   const [accountName, setAccountName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const validation = reviewedAmounts(Number(subtotal), Number(gst), Number(total));
+  const validation = (() => {
+    const [sub, tax, grand] = [Number(subtotal), Number(gst), Number(total)];
+    if (!subtotal.trim() || !gst.trim() || !total.trim() || ![sub, tax, grand].every(Number.isFinite) || sub <= 0 || tax < 0 || grand <= 0) return "Enter a positive printed subtotal and total, and non-negative GST.";
+    return Math.abs(sub + tax - grand) > 0.02 ? "Printed subtotal + GST must equal printed total." : "";
+  })();
+  const lineSubtotal = lines.reduce((sum, line) => sum + Math.round(Number(line.quantity) * Number(line.unitPrice) * 100) / 100, 0);
+  const lineGst = lines.reduce((sum, line) => sum + Math.round(Number(line.quantity) * Number(line.unitPrice) * Number(line.gstRate)) / 100, 0);
+  const lineTotal = lines.reduce((sum, line) => sum + Math.round(Number(line.quantity) * Number(line.unitPrice) * (1 + Number(line.gstRate) / 100) * 100) / 100, 0);
   const expenseAccounts = accounts.filter((account) => account.active && account.type === "expense");
 
   async function choose(file?: File) {
@@ -37,24 +44,28 @@ export default function DocumentImport({ suppliers, accounts, onApply, onCreateA
       const extracted = extractBillFields(text);
       setSource(extracted); setSourceName(file.name);
       setSupplierId(suppliers.find((item) => item.name.trim().toLowerCase() === extracted.supplier.toLowerCase())?.id ?? "");
-      setDate(extracted.invoiceDate); setReference(extracted.reference); setDescription("Document expense");
-      setAccountId(""); setSubtotal(extracted.subtotal?.toFixed(2) ?? ""); setGst(extracted.gst?.toFixed(2) ?? ""); setTotal(extracted.total?.toFixed(2) ?? "");
+      setDate(extracted.invoiceDate); setReference(extracted.reference);
+      setSubtotal(extracted.subtotal?.toFixed(2) ?? ""); setGst(extracted.gst?.toFixed(2) ?? ""); setTotal(extracted.total?.toFixed(2) ?? "");
+      const rate = extracted.subtotal !== null && extracted.gst !== null && extracted.total !== null ? reviewedAmounts(extracted.subtotal, extracted.gst, extracted.total).rate : 0;
+      setLines(extracted.items.map((item) => ({ description: item.description, quantity: String(item.quantity), unitPrice: item.unitPrice.toFixed(2), gstRate: String(rate), accountId: "" })));
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to read document."); }
     finally { setBusy(false); }
   }
 
   async function createAccount() {
     setBusy(true); setError("");
-    try { const id = await onCreateAccount(code.trim(), accountName.trim()); setAccountId(id); setCode(""); setAccountName(""); }
+    try { const id = await onCreateAccount(code.trim(), accountName.trim()); setLines((old) => old.map((line) => ({ ...line, accountId: line.accountId || id }))); setCode(""); setAccountName(""); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to create expense account."); }
     finally { setBusy(false); }
   }
 
   function apply() {
     setError("");
-    if (!supplierId || !date || !reference.trim() || !description.trim() || !accountId) return setError("Supplier, date, reference, description and expense account are required.");
-    if (validation.error) return setError(validation.error);
-    onApply({ supplierId, date, reference: reference.trim(), description: description.trim(), accountId, subtotal: Number(subtotal), gstRate: validation.rate, sourceName });
+    if (!supplierId || !date || !reference.trim()) return setError("Supplier, date and supplier invoice number are required.");
+    if (!lines.length || lines.some((line) => !line.description.trim() || !line.accountId || !Number.isFinite(Number(line.quantity)) || Number(line.quantity) <= 0 || !Number.isFinite(Number(line.unitPrice)) || Number(line.unitPrice) < 0 || !Number.isFinite(Number(line.gstRate)) || Number(line.gstRate) < 0 || Number(line.gstRate) > 100)) return setError("Review every line: description, quantity, price, GST rate and expense account are required.");
+    if (validation) return setError(validation);
+    if (Math.abs(lineSubtotal - Number(subtotal)) > 0.02 || Math.abs(lineGst - Number(gst)) > 0.02 || Math.abs(lineTotal - Number(total)) > 0.02) return setError("Bill lines must match the printed subtotal, GST and total. Correct missing items or tax rates before applying.");
+    onApply({ supplierId, date, reference: reference.trim(), lines: lines.map((line) => ({ description: line.description.trim(), quantity: Number(line.quantity), unitPrice: Number(line.unitPrice), gstRate: Number(line.gstRate), accountId: line.accountId })), sourceName });
   }
 
   return <section className="document-import">
@@ -67,17 +78,27 @@ export default function DocumentImport({ suppliers, accounts, onApply, onCreateA
         <label>Supplier<select value={supplierId} onChange={(event) => setSupplierId(event.target.value)}><option value="">Select a registered supplier</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></label>
         <label>Bill date<input type="date" value={date} onChange={(event) => setDate(event.target.value)}/></label>
         <label>Supplier invoice number<input value={reference} onChange={(event) => setReference(event.target.value)}/></label>
-        <label>Expense description<input value={description} onChange={(event) => setDescription(event.target.value)}/></label>
         <label>Subtotal (PKR)<input type="number" min="0" step="0.01" value={subtotal} onChange={(event) => setSubtotal(event.target.value)}/></label>
         <label>GST amount (PKR)<input type="number" min="0" step="0.01" value={gst} onChange={(event) => setGst(event.target.value)}/></label>
         <label>Invoice total (PKR)<input type="number" min="0" step="0.01" value={total} onChange={(event) => setTotal(event.target.value)}/></label>
-        <label>Expense account<select value={accountId} onChange={(event) => setAccountId(event.target.value)}><option value="">Select the right account</option>{expenseAccounts.map((account) => <option key={account.id} value={account.id}>{account.code} · {account.name}</option>)}</select></label>
+      </div>
+      <div className="document-items"><h4>Invoice item lines</h4><p className="document-source">Only clearly matched rows are suggested. Add missing rows and verify every item against the PDF.</p>
+        {lines.map((line, index) => <div className="document-item" key={index}>
+          <label>Description<input aria-label={`Line ${index + 1} description`} value={line.description} onChange={(event) => setLines((old) => old.map((item, i) => i === index ? { ...item, description: event.target.value } : item))}/></label>
+          <label>Qty<input aria-label={`Line ${index + 1} quantity`} type="number" step="0.001" min="0.001" value={line.quantity} onChange={(event) => setLines((old) => old.map((item, i) => i === index ? { ...item, quantity: event.target.value } : item))}/></label>
+          <label>Unit price<input aria-label={`Line ${index + 1} unit price`} type="number" step="0.01" min="0" value={line.unitPrice} onChange={(event) => setLines((old) => old.map((item, i) => i === index ? { ...item, unitPrice: event.target.value } : item))}/></label>
+          <label>GST %<input aria-label={`Line ${index + 1} GST rate`} type="number" step="0.01" min="0" max="100" value={line.gstRate} onChange={(event) => setLines((old) => old.map((item, i) => i === index ? { ...item, gstRate: event.target.value } : item))}/></label>
+          <label>Expense account<select aria-label={`Line ${index + 1} expense account`} value={line.accountId} onChange={(event) => setLines((old) => old.map((item, i) => i === index ? { ...item, accountId: event.target.value } : item))}><option value="">Select account</option>{expenseAccounts.map((account) => <option key={account.id} value={account.id}>{account.code} · {account.name}</option>)}</select></label>
+          <button type="button" title="Remove line" aria-label={`Remove line ${index + 1}`} onClick={() => setLines((old) => old.filter((_, i) => i !== index))}><Trash2 size={15}/></button>
+        </div>)}
+        <button type="button" className="outline" onClick={() => setLines((old) => [...old, { description: "", quantity: "1", unitPrice: "", gstRate: "0", accountId: "" }])}><Plus size={15}/> Add missing line</button>
+        <p className="document-source">Lines: {lineSubtotal.toFixed(2)} + GST {lineGst.toFixed(2)} = {lineTotal.toFixed(2)} PKR</p>
       </div>
       <details className="document-account"><summary>Expense account missing? Create it after review</summary><div><input placeholder="Unique account code" value={code} onChange={(event) => setCode(event.target.value)}/><input placeholder="Account name" value={accountName} onChange={(event) => setAccountName(event.target.value)}/><button type="button" className="outline" disabled={busy || !code.trim() || !accountName.trim()} onClick={createAccount}>Create account</button></div></details>
-      {validation.error && <p className="alert">{validation.error}</p>}
+      {validation && <p className="alert">{validation}</p>}
       <details className="document-text"><summary>Show extracted text for comparison</summary><pre>{source.text}</pre></details>
-      <button type="button" className="primary" disabled={busy || Boolean(validation.error)} onClick={apply}>Use reviewed values in bill draft</button>
-      <p className="document-source">Multiple stock items or special tax rules need line-by-line corrections in the draft before posting.</p>
+      <button type="button" className="primary" disabled={busy || Boolean(validation)} onClick={apply}>Use reviewed lines in bill draft</button>
+      <p className="document-source">Stock products must be assigned manually in the draft. Keep this document open for comparison before posting.</p>
     </>}
   </section>;
 }
