@@ -8,9 +8,38 @@ export type ExtractedBill = {
   total: number | null;
   items: ExtractedItem[];
   warnings: string[];
+  tables?: string[][][];
+  engine?: string;
 };
 
 export type ExtractedItem = { description: string; quantity: number; unitPrice: number; amount: number };
+
+export function extractTableItems(tables: string[][][]): ExtractedItem[] {
+  const items: ExtractedItem[] = [];
+  for (const table of tables) {
+    const headerIndex = table.findIndex((row) => row.some((cell) => /^(?:qty|quantity)\b/i.test(cell.trim())) && row.some((cell) => /(?:description|item|product)/i.test(cell)));
+    if (headerIndex < 0) continue;
+    const header = table[headerIndex];
+    const descriptionIndex = header.findIndex((cell) => /(?:description|item|product)/i.test(cell));
+    const quantityIndex = header.findIndex((cell) => /^(?:qty|quantity)\b/i.test(cell.trim()));
+    const priceIndex = header.findIndex((cell) => /(?:price|rate|unit cost)/i.test(cell));
+    const amountIndex = header.findIndex((cell) => /^(?:amount|total|line total)\b/i.test(cell.trim()));
+    if ([descriptionIndex, quantityIndex, priceIndex, amountIndex].some((i) => i < 0)) continue;
+    const numeric = (cell: string) => {
+      const value = cell.replace(/^(?:PKR|Rs\.?|₨|₹)\s*/i, "").trim();
+      return /^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/.test(value) ? Number(value.replace(/,/g, "")) : NaN;
+    };
+    for (const row of table.slice(headerIndex + 1)) {
+      const description = row[descriptionIndex]?.trim();
+      if (!description || /^(?:total|sub\s*total|discount|gst|tax)\b/i.test(description)) continue;
+      if ([quantityIndex, priceIndex, amountIndex].some((index) => !row[index]?.trim())) continue;
+      const quantity = numeric(row[quantityIndex]), unitPrice = numeric(row[priceIndex]), printed = numeric(row[amountIndex]);
+      if (![quantity, unitPrice, printed].every(Number.isFinite) || quantity <= 0 || unitPrice < 0 || printed < 0 || Math.abs(Math.round(quantity * unitPrice * 100) / 100 - printed) > .01) continue;
+      items.push({ description, quantity, unitPrice, amount: printed });
+    }
+  }
+  return items;
+}
 
 const amount = (value: string) => {
   const parsed = Number(value.replace(/[,\s]/g, ""));
@@ -114,7 +143,7 @@ export function reviewedAmounts(subtotal: number, gst: number, total: number): {
   return { rate, error: "" };
 }
 
-export async function readDocument(file: File): Promise<string> {
+export async function readDocument(file: File, nativePdfOnly = false): Promise<string> {
   if (file.size > 12 * 1024 * 1024) throw new Error("Maximum file size is 12 MB.");
   const extension = file.name.split(".").pop()?.toLowerCase();
   if (extension === "txt") return file.text();
@@ -148,6 +177,7 @@ export async function readDocument(file: File): Promise<string> {
       const text = rows.sort((a, b) => b.y - a.y).map((row) => row.parts.sort((a, b) => a.x - b.x).map((part) => part.value).join(" ")).join("\n");
       if (text.trim().length > 25) pages.push(text);
       else {
+        if (nativePdfOnly) return "";
         const viewport = page.getViewport({ scale: 2 });
         const canvas = document.createElement("canvas");
         canvas.width = viewport.width; canvas.height = viewport.height;

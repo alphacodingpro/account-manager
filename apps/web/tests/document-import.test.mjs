@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 const source = readFileSync(new URL('../src/lib/documentImport.ts', import.meta.url), 'utf8');
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
-const { extractBillFields, extractItemRows } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
+const { extractBillFields, extractItemRows, extractTableItems } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
 // Synthetic data reproducing wrapped invoice rows; no uploaded customer file.
 const text = `EXAMPLE TRADERS
 Invoice
@@ -58,4 +58,14 @@ test('no zero GST is inferred when the printed totals differ', () => {
   const bill = extractBillFields('Cable 2 100 200\nSub Total 200\nTotal 236');
   assert.equal(bill.gst,null);
   assert.ok(bill.warnings.some(w => w.includes('do not balance')));
+});
+test('structured tables support reordered columns and keep serial details', () => {
+  const tables = [[['Amount','Quantity','Item name','Price/ Unit'],['Rs 200','2','Camera\nSerial No.: A, B','Rs 100'],['Rs 200','2','Total','Rs 100']]];
+  assert.deepEqual(extractTableItems(tables),[{description:'Camera\nSerial No.: A, B',quantity:2,unitPrice:100,amount:200}]);
+});
+test('structured table mismatches and merged/incomplete rows need manual review', () => {
+  assert.equal(extractTableItems([[['Item','Qty','Price','Amount'],['Cable','2','100','999'],['Camera','1']]]).length,0);
+});
+test('ambiguous spaced amounts are not silently joined into another number', () => {
+  assert.equal(extractTableItems([[['Item','Qty','Price','Amount'],['Cable','1 2','10','120']]]).length,0);
 });

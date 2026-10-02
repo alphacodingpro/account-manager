@@ -116,7 +116,7 @@ export default function PurchasesView({ companyId, branches, accounts, onAccount
     </div></div>
     {message && <p className={message.includes("success") ? "notice" : "alert"}>{message}</p>}
     {supplierOpen && <form className="customer-form" onSubmit={addSupplier}><label>Supplier name<input value={supplierName} onChange={(e) => setSupplierName(e.target.value)} required/></label><button className="primary">Save supplier</button></form>}
-    {importOpen && <DocumentImport key={companyId} suppliers={suppliers} accounts={accounts} onApply={applyImportedDocument} onCreateAccount={createExpenseAccount}/>}
+    {importOpen && <DocumentImport companyId={companyId} key={companyId} suppliers={suppliers} accounts={accounts} onApply={applyImportedDocument} onCreateAccount={createExpenseAccount}/>}
     {billOpen && <form className="invoice-form" onSubmit={(e)=>{e.preventDefault();saveBill(true);}}>
       <div className="invoice-meta"><label>Supplier<select value={supplierId} onChange={(e) => setSupplierId(e.target.value)} required><option value="">Select</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
       <label>Branch<select value={branchId} onChange={(e) => { setBranchId(e.target.value); setWarehouseId(warehouses.find((w) => w.branch_id === e.target.value)?.id ?? ""); }} required><option value="">Select</option>{branches.filter((b) => b.active).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>

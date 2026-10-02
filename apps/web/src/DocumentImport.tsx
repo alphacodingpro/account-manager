@@ -1,15 +1,16 @@
 import { useState } from "react";
 import { FileSearch, Plus, Trash2, UploadCloud } from "lucide-react";
-import { extractBillFields, readDocument, reviewedAmounts, type ExtractedBill } from "./lib/documentImport";
+import { reviewedAmounts, type ExtractedBill } from "./lib/documentImport";
 import "./DocumentImport.css";
+import { scanSupplierDocument } from "./lib/localDocumentScan";
 
 type Supplier = { id: string; name: string };
 type Account = { id: string; code: string; name: string; type: string; active: boolean };
 type ReviewedLine = { description: string; quantity: string; unitPrice: string; gstRate: string; accountId: string };
 export type ReviewedDocument = { supplierId: string; date: string; reference: string; lines: { description: string; quantity: number; unitPrice: number; gstRate: number; accountId: string }[]; sourceName: string };
 
-export default function DocumentImport({ suppliers, accounts, onApply, onCreateAccount }: {
-  suppliers: Supplier[]; accounts: Account[]; onApply: (data: ReviewedDocument) => void;
+export default function DocumentImport({ companyId, suppliers, accounts, onApply, onCreateAccount }: {
+  companyId: string; suppliers: Supplier[]; accounts: Account[]; onApply: (data: ReviewedDocument) => void;
   onCreateAccount: (code: string, name: string) => Promise<string>;
 }) {
   const [source, setSource] = useState<ExtractedBill | null>(null);
@@ -39,9 +40,9 @@ export default function DocumentImport({ suppliers, accounts, onApply, onCreateA
     if (!file) return;
     setBusy(true); setError(""); setSource(null);
     try {
-      const text = await readDocument(file);
+      const extracted = await scanSupplierDocument(file, companyId);
+      const text = extracted.text;
       if (text.trim().length < 25) throw new Error("No usable text was found. Try a clearer scan or enter the bill manually.");
-      const extracted = extractBillFields(text);
       setSource(extracted); setSourceName(file.name);
       setSupplierId(suppliers.find((item) => item.name.trim().toLowerCase() === extracted.supplier.toLowerCase())?.id ?? "");
       setDate(extracted.invoiceDate); setReference(extracted.reference);
@@ -72,8 +73,9 @@ export default function DocumentImport({ suppliers, accounts, onApply, onCreateA
     <div className="document-import-head"><FileSearch size={20}/><div><h4>Import and review a supplier document</h4><p>Local text extraction only. Every value requires your review; this creates an editable draft.</p></div></div>
     <label className="document-upload"><UploadCloud size={18}/>{busy ? "Reading document…" : "Choose PDF, image, DOCX or TXT"}<input type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.docx,.txt" disabled={busy} onChange={(event) => { void choose(event.target.files?.[0]); event.target.value = ""; }}/></label>
     {error && <p className="alert">{error}</p>}
-    {source && <><p className="document-source">Source: <b>{sourceName}</b>. Compare every value against the original document before applying.</p>
+    {source && <><p className="document-source">Source: <b>{sourceName}</b> · {source.engine || "Browser OCR / text extraction"}. Compare every value against the original document before applying.</p>
       {source.warnings.length > 0 && <ul className="document-warnings">{source.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>}
+      {source.tables?.map((table, index) => <div className="document-table-scroll" key={index}><table className="document-summary"><caption>Original scanned table {index + 1}</caption><tbody>{table.map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell}</td>)}</tr>)}</tbody></table></div>)}
       <div className="document-table-scroll"><table className="document-summary"><caption>Scanned invoice — {source.items.length} detected items</caption><thead><tr><th>#</th><th>Item / serial details</th><th>Quantity</th><th>Unit price (PKR)</th><th>Amount (PKR)</th></tr></thead><tbody>
         {source.items.map((item, index) => <tr key={index}><td>{index + 1}</td><td>{item.description}</td><td>{item.quantity}</td><td>{item.unitPrice.toFixed(2)}</td><td>{item.amount.toFixed(2)}</td></tr>)}
         {!source.items.length && <tr><td colSpan={5}>No complete item rows detected. Compare the extracted text and add missing lines below.</td></tr>}
