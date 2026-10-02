@@ -17,19 +17,19 @@ const amount = (value: string) => {
   return Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed * 100) / 100 : null;
 };
 
-function labelledAmount(lines: string[], pattern: RegExp): number | null {
+function labelledAmount(lines: string[], pattern: RegExp, lastValue = false): number | null {
   for (const line of [...lines].reverse()) {
     const label = line.match(pattern);
     if (!label) continue;
     const tail = line.slice((label.index ?? 0) + label[0].length);
     const values = [...tail.matchAll(/\d[\d,]*(?:\.\d{1,2})?/g)].filter((match) => !/^\s*%/.test(tail.slice((match.index ?? 0) + match[0].length)));
-    if (values.length) return amount(values[0][0]);
+    if (values.length) return amount(values[lastValue ? values.length - 1 : 0][0]);
   }
   return null;
 }
 
 function dateFrom(text: string): string {
-  const match = text.match(/(?:invoice|bill|issue)\s*date\s*[:#-]?\s*(\d{1,4}[./-]\d{1,2}[./-]\d{1,4})/i);
+  const match = text.match(/(?:(?:invoice|bill|issue)\s*)?date\s*[:#-]?\s*(\d{1,4}[./-]\d{1,2}[./-]\d{1,4})/i);
   if (!match) return "";
   const parts = match[1].split(/[./-]/).map(Number);
   const [year, month, day] = parts[0] > 1900 ? parts : [parts[2], parts[1], parts[0]];
@@ -38,23 +38,44 @@ function dateFrom(text: string): string {
     ? `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}` : "";
 }
 
-// Deliberately conservative: OCR/PDF layouts vary. Only accept rows whose
-// quantity × unit price reproduces the printed amount within one paisa.
+// Reassemble wrapped descriptions and serial-number continuation rows before
+// accepting an item. Printed quantity × price must still match its amount.
 export function extractItemRows(text: string): ExtractedItem[] {
   const items: ExtractedItem[] = [];
-  const number = "(\\d[\\d,]*(?:\\.\\d{1,2})?)";
-  const row = new RegExp(`^(.{3,}?)\\s+(\\d+(?:\\.\\d{1,3})?)\\s+(?:PKR|Rs\\.?|₨)?\\s*${number}\\s+(?:PKR|Rs\\.?|₨)?\\s*${number}$`, "i");
+  const numeric = "(\\d[\\d,]*(?:\\.\\d{1,2})?)";
+  const tail = `(\\d+(?:\\.\\d{1,3})?)\\s+(?:PKR|Rs\\.?|₨)?\\s*${numeric}\\s+(?:PKR|Rs\\.?|₨)?\\s*${numeric}`;
+  const fullRow = new RegExp(`^(.+?)\\s+${tail}$`, "i");
+  const valuesRow = new RegExp(`^(?:\\d+[.)]?\\s+)?${tail}$`, "i");
+  let pendingDescription = "";
+  let inTable = false;
+  let attachSerial = false;
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.replace(/\s+/g, " ").trim();
-    if (/\b(subtotal|grand total|invoice total|amount due|total payable|balance|discount|sales tax|gst|vat)\b/i.test(line)) continue;
-    const match = line.match(row);
-    if (!match) continue;
-    const description = match[1].replace(/^(?:\d+[.)-]?\s+|item\s*\d+\s+)/i, "").trim();
-    const quantity = Number(match[2]);
-    const unitPrice = amount(match[3]);
-    const printedAmount = amount(match[4]);
-    if (!description || !Number.isFinite(quantity) || quantity <= 0 || unitPrice === null || printedAmount === null || Math.abs(Math.round(quantity * unitPrice * 100) / 100 - printedAmount) > 0.01) continue;
-    items.push({ description, quantity, unitPrice, amount: printedAmount });
+    if (!line) continue;
+    if (/\b(?:item name|description)\b.*\b(?:quantity|qty|amount)\b/i.test(line)) { inTable = true; pendingDescription = ""; continue; }
+    if (/^(?:sub\s*total|grand\s*total|invoice\s*(?:total|amount)|total(?:\s|:|$)|amount due|total payable|balance|discount|sales tax|gst|vat)\b/i.test(line)) { pendingDescription = ""; inTable = false; continue; }
+    if (/^serial\s*(?:no\.?|number|#)\s*:/i.test(line)) {
+      if (attachSerial && items.length) items[items.length - 1].description += `\n${line}`;
+      continue;
+    }
+    attachSerial = false;
+    const values = line.match(valuesRow);
+    const complete = line.match(fullRow);
+    const description = values ? pendingDescription : complete?.[1].replace(/^\d+[.)-]?\s+/, "").trim();
+    const columns = values ? values.slice(1) : complete?.slice(2);
+    if (description && columns) {
+      const quantity = Number(columns[0]);
+      const unitPrice = amount(columns[1]);
+      const printedAmount = amount(columns[2]);
+      if (quantity > 0 && unitPrice !== null && printedAmount !== null && Math.abs(Math.round(quantity * unitPrice * 100) / 100 - printedAmount) <= 0.01) {
+        items.push({ description, quantity, unitPrice, amount: printedAmount });
+        attachSerial = true;
+        pendingDescription = "";
+        continue;
+      }
+    }
+    if (values || complete) pendingDescription = "";
+    if (inTable && !values && !complete && !/^(?:#|quantity|qty|price|amount|page)\b/i.test(line)) pendingDescription = pendingDescription ? `${pendingDescription} ${line}` : line.replace(/^\d+[.)-]?\s+/, "");
   }
   return items;
 }
@@ -62,10 +83,12 @@ export function extractItemRows(text: string): ExtractedItem[] {
 export function extractBillFields(text: string): ExtractedBill {
   const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const subtotal = labelledAmount(lines, /(?:sub\s*total|taxable\s*(?:amount|value))\s*[:=\-]?\s*(?:pkr|rs\.?|₨)?/i);
-  const gst = labelledAmount(lines, /(?:gst|sales\s*tax|vat)\s*(?:@?\s*\d+(?:\.\d+)?\s*%)?\s*[:=\-]?\s*(?:pkr|rs\.?|₨)?/i);
-  const total = labelledAmount(lines, /(?:grand\s*total|invoice\s*total|amount\s*due|total\s*payable)\s*[:=\-]?\s*(?:pkr|rs\.?|₨)?/i);
-  const supplier = lines.find((line) => /^(?:supplier|vendor|from)\s*:/i.test(line))?.replace(/^[^:]+:\s*/, "").trim() ?? "";
-  const reference = text.match(/(?:invoice|bill)\s*(?:no\.?|number|#)\s*[:#-]?\s*([a-z\d/-]+)/i)?.[1] ?? "";
+  let gst = labelledAmount(lines, /(?:gst|sales\s*tax|vat)\s*(?:@?\s*\d+(?:\.\d+)?\s*%)?\s*[:=\-]?\s*(?:pkr|rs\.?|₨)?/i);
+  const total = labelledAmount(lines, /(?:^total|grand\s*total|invoice\s*total|amount\s*due|total\s*payable)\s*[:=\-]?\s*(?:pkr|rs\.?|₨)?/i, true);
+  const labelledSupplier = lines.find((line) => /^(?:supplier|vendor|from)\s*:/i.test(line))?.replace(/^[^:]+:\s*/, "").trim() ?? "";
+  const invoiceHeading = lines.findIndex((line) => /^invoice$/i.test(line));
+  const supplier = labelledSupplier || (invoiceHeading > 0 ? lines[invoiceHeading - 1] : "");
+  const reference = text.match(/(?:invoice|bill)\s*(?:no\.?|number|#)\s*[.:#-]?\s*([a-z\d/-]+)/i)?.[1] ?? "";
   const warnings: string[] = [];
   const items = extractItemRows(text);
   if (!items.length) warnings.push("No item rows could be matched reliably. Add each invoice item manually from the original document.");
@@ -76,7 +99,10 @@ export function extractBillFields(text: string): ExtractedBill {
   if (subtotal === null || total === null) warnings.push("Subtotal or grand total is missing. Enter amounts manually.");
   if (subtotal !== null && total !== null && Math.abs(subtotal + (gst ?? 0) - total) > 0.02)
     warnings.push("Extracted subtotal, GST and total do not balance. Correct them before saving.");
-  if (gst === null) warnings.push("GST was not identified. Confirm whether the invoice includes GST.");
+  if (gst === null) {
+    warnings.push("GST was not printed separately. Confirm the tax treatment before posting.");
+    if (subtotal !== null && total !== null && Math.abs(subtotal - total) <= 0.01) gst = 0;
+  }
   return { text, supplier, invoiceDate: dateFrom(text), reference, subtotal, gst, total, items, warnings };
 }
 

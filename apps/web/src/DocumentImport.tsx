@@ -74,6 +74,10 @@ export default function DocumentImport({ suppliers, accounts, onApply, onCreateA
     {error && <p className="alert">{error}</p>}
     {source && <><p className="document-source">Source: <b>{sourceName}</b>. Compare every value against the original document before applying.</p>
       {source.warnings.length > 0 && <ul className="document-warnings">{source.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>}
+      <div className="document-table-scroll"><table className="document-summary"><caption>Scanned invoice — {source.items.length} detected items</caption><thead><tr><th>#</th><th>Item / serial details</th><th>Quantity</th><th>Unit price (PKR)</th><th>Amount (PKR)</th></tr></thead><tbody>
+        {source.items.map((item, index) => <tr key={index}><td>{index + 1}</td><td>{item.description}</td><td>{item.quantity}</td><td>{item.unitPrice.toFixed(2)}</td><td>{item.amount.toFixed(2)}</td></tr>)}
+        {!source.items.length && <tr><td colSpan={5}>No complete item rows detected. Compare the extracted text and add missing lines below.</td></tr>}
+      </tbody><tfoot><tr><th colSpan={2}>Detected totals</th><td>{source.items.reduce((sum, item) => sum + item.quantity, 0)}</td><td/><td>{source.items.reduce((sum, item) => sum + item.amount, 0).toFixed(2)}</td></tr></tfoot></table></div>
       <div className="document-fields">
         <label>Supplier<select value={supplierId} onChange={(event) => setSupplierId(event.target.value)}><option value="">Select a registered supplier</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></label>
         <label>Bill date<input type="date" value={date} onChange={(event) => setDate(event.target.value)}/></label>
@@ -84,7 +88,7 @@ export default function DocumentImport({ suppliers, accounts, onApply, onCreateA
       </div>
       <div className="document-items"><h4>Invoice item lines</h4><p className="document-source">Only clearly matched rows are suggested. Add missing rows and verify every item against the PDF.</p>
         {lines.map((line, index) => <div className="document-item" key={index}>
-          <label>Description<input aria-label={`Line ${index + 1} description`} value={line.description} onChange={(event) => setLines((old) => old.map((item, i) => i === index ? { ...item, description: event.target.value } : item))}/></label>
+          <label>Description<textarea rows={2} aria-label={`Line ${index + 1} description`} value={line.description} onChange={(event) => setLines((old) => old.map((item, i) => i === index ? { ...item, description: event.target.value } : item))}/></label>
           <label>Qty<input aria-label={`Line ${index + 1} quantity`} type="number" step="0.001" min="0.001" value={line.quantity} onChange={(event) => setLines((old) => old.map((item, i) => i === index ? { ...item, quantity: event.target.value } : item))}/></label>
           <label>Unit price<input aria-label={`Line ${index + 1} unit price`} type="number" step="0.01" min="0" value={line.unitPrice} onChange={(event) => setLines((old) => old.map((item, i) => i === index ? { ...item, unitPrice: event.target.value } : item))}/></label>
           <label>GST %<input aria-label={`Line ${index + 1} GST rate`} type="number" step="0.01" min="0" max="100" value={line.gstRate} onChange={(event) => setLines((old) => old.map((item, i) => i === index ? { ...item, gstRate: event.target.value } : item))}/></label>
