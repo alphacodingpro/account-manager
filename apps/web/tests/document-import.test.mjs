@@ -69,3 +69,32 @@ test('structured table mismatches and merged/incomplete rows need manual review'
 test('ambiguous spaced amounts are not silently joined into another number', () => {
   assert.equal(extractTableItems([[['Item','Qty','Price','Amount'],['Cable','1 2','10','120']]]).length,0);
 });
+
+const reviewSource = readFileSync(new URL('../src/lib/documentReview.ts', import.meta.url), 'utf8');
+const reviewCompiled = ts.transpileModule(reviewSource, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
+const { reviewDocumentLines } = await import(`data:text/javascript;base64,${Buffer.from(reviewCompiled).toString('base64')}`);
+const validReviewLine = { description: 'Cable', quantity: '2', unitPrice: '100', gstRate: '18', accountId: 'expense-1' };
+const printedReview = { subtotal: '200', gst: '36', total: '236' };
+test('review reconciles all three printed amounts and identifies missing lines', () => {
+  assert.equal(reviewDocumentLines([validReviewLine], printedReview, ['expense-1']).error, '');
+  const missing = reviewDocumentLines([{ ...validReviewLine, quantity: '1' }], printedReview, ['expense-1']);
+  assert.deepEqual(missing.differences, { subtotal: -100, gst: -18, total: -118 });
+  assert.match(missing.error, /do not match/);
+});
+test('blank prices and GST cannot silently become zero and stale accounts are rejected', () => {
+  for (const change of [{ unitPrice: '' }, { gstRate: '' }, { quantity: 'Infinity' }, { accountId: 'inactive-account' }]) {
+    assert.match(reviewDocumentLines([{ ...validReviewLine, ...change }], printedReview, ['expense-1']).error, /Line 1/);
+  }
+  assert.match(reviewDocumentLines([], printedReview, ['expense-1']).error, /at least one/);
+});
+test('explicit zero price and zero GST remain valid, with line-level rounding', () => {
+  const lines = [{ ...validReviewLine, quantity: '1', unitPrice: '0', gstRate: '0' }, { ...validReviewLine, quantity: '3', unitPrice: '0.33', gstRate: '0' }];
+  const result = reviewDocumentLines(lines, { subtotal: '.99', gst: '0', total: '.99' }, ['expense-1']);
+  assert.equal(result.error, '');
+  assert.equal(result.totals.total, .99);
+});
+
+test("overflowing line arithmetic cannot pass review", () => {
+  const result = reviewDocumentLines([{ ...validReviewLine, quantity: "1e300", unitPrice: "1e300" }], printedReview, ["expense-1"]);
+  assert.match(result.error, /too large/);
+});

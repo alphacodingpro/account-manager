@@ -2,6 +2,7 @@ import { useState } from "react";
 import { FileSearch, Plus, Trash2, UploadCloud } from "lucide-react";
 import { reviewedAmounts, type ExtractedBill } from "./lib/documentImport";
 import "./DocumentImport.css";
+import { reviewDocumentLines } from "./lib/documentReview";
 import { scanSupplierDocument } from "./lib/localDocumentScan";
 
 type Supplier = { id: string; name: string };
@@ -26,15 +27,10 @@ export default function DocumentImport({ companyId, suppliers, accounts, onApply
   const [accountName, setAccountName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const validation = (() => {
-    const [sub, tax, grand] = [Number(subtotal), Number(gst), Number(total)];
-    if (!subtotal.trim() || !gst.trim() || !total.trim() || ![sub, tax, grand].every(Number.isFinite) || sub <= 0 || tax < 0 || grand <= 0) return "Enter a positive printed subtotal and total, and non-negative GST.";
-    return Math.abs(sub + tax - grand) > 0.02 ? "Printed subtotal + GST must equal printed total." : "";
-  })();
-  const lineSubtotal = lines.reduce((sum, line) => sum + Math.round(Number(line.quantity) * Number(line.unitPrice) * 100) / 100, 0);
-  const lineGst = lines.reduce((sum, line) => sum + Math.round(Number(line.quantity) * Number(line.unitPrice) * Number(line.gstRate)) / 100, 0);
-  const lineTotal = lines.reduce((sum, line) => sum + Math.round(Number(line.quantity) * Number(line.unitPrice) * (1 + Number(line.gstRate) / 100) * 100) / 100, 0);
   const expenseAccounts = accounts.filter((account) => account.active && account.type === "expense");
+  const review = reviewDocumentLines(lines, { subtotal, gst, total }, expenseAccounts.map((account) => account.id));
+  const validation = review.error;
+  const { subtotal: lineSubtotal, gst: lineGst, total: lineTotal } = review.totals;
 
   async function choose(file?: File) {
     if (!file) return;
@@ -63,9 +59,7 @@ export default function DocumentImport({ companyId, suppliers, accounts, onApply
   function apply() {
     setError("");
     if (!supplierId || !date || !reference.trim()) return setError("Supplier, date and supplier invoice number are required.");
-    if (!lines.length || lines.some((line) => !line.description.trim() || !line.accountId || !Number.isFinite(Number(line.quantity)) || Number(line.quantity) <= 0 || !Number.isFinite(Number(line.unitPrice)) || Number(line.unitPrice) < 0 || !Number.isFinite(Number(line.gstRate)) || Number(line.gstRate) < 0 || Number(line.gstRate) > 100)) return setError("Review every line: description, quantity, price, GST rate and expense account are required.");
     if (validation) return setError(validation);
-    if (Math.abs(lineSubtotal - Number(subtotal)) > 0.02 || Math.abs(lineGst - Number(gst)) > 0.02 || Math.abs(lineTotal - Number(total)) > 0.02) return setError("Bill lines must match the printed subtotal, GST and total. Correct missing items or tax rates before applying.");
     onApply({ supplierId, date, reference: reference.trim(), lines: lines.map((line) => ({ description: line.description.trim(), quantity: Number(line.quantity), unitPrice: Number(line.unitPrice), gstRate: Number(line.gstRate), accountId: line.accountId })), sourceName });
   }
 
@@ -99,6 +93,7 @@ export default function DocumentImport({ companyId, suppliers, accounts, onApply
         </div>)}
         <button type="button" className="outline" onClick={() => setLines((old) => [...old, { description: "", quantity: "1", unitPrice: "", gstRate: "0", accountId: "" }])}><Plus size={15}/> Add missing line</button>
         <p className="document-source">Lines: {lineSubtotal.toFixed(2)} + GST {lineGst.toFixed(2)} = {lineTotal.toFixed(2)} PKR</p>
+        <p className="document-source" aria-live="polite">Difference from printed amounts (PKR): subtotal {review.differences.subtotal.toFixed(2)} · GST {review.differences.gst.toFixed(2)} · total {review.differences.total.toFixed(2)}</p>
       </div>
       <details className="document-account"><summary>Expense account missing? Create it after review</summary><div><input placeholder="Unique account code" value={code} onChange={(event) => setCode(event.target.value)}/><input placeholder="Account name" value={accountName} onChange={(event) => setAccountName(event.target.value)}/><button type="button" className="outline" disabled={busy || !code.trim() || !accountName.trim()} onClick={createAccount}>Create account</button></div></details>
       {validation && <p className="alert">{validation}</p>}
