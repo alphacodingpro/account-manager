@@ -20,7 +20,8 @@
 - [ ] Suppliers, quotations and orders
 - [x] Bills, customer receipts and supplier payments with safe reversal
 - [ ] Credit/debit notes and sales quotations/orders
-- Receivable/payable aging and PDF documents
+- [x] Historical receivable/payable aging by document and allocated-payment date
+- PDF sales and purchase documents
 
 ## Milestone 3 — Inventory
 
