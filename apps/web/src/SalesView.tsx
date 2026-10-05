@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { FilePlus2, Pencil, Plus, RotateCcw, Trash2, UserPlus, X } from "lucide-react";
 import { supabase } from "./lib/supabase";
+import SalesQuotations from "./SalesQuotations";
 type Branch = { id: string; name: string; active: boolean };
 type Contact = {
   id: string;
@@ -522,6 +523,7 @@ export default function SalesView({
           </div>
         )}
       </article>
+      <SalesQuotations companyId={companyId} branches={branches} onConverted={load}/>
     </div>
   );
 }

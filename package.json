@@ -6,10 +6,9 @@
   "scripts": {
     "dev": "concurrently \"npm run dev -w @cloudledger/web\" \"npm run start:dev -w @cloudledger/api\"",
     "build": "npm run build -w @cloudledger/api && npm run build -w @cloudledger/web",
-    "test": "npm run test -w @cloudledger/api && node --test apps/web/tests/document-import.test.mjs && node scripts/test-aging-migration.mjs",
+    "test": "npm run test -w @cloudledger/api && node --test apps/web/tests/document-import.test.mjs && node scripts/test-aging-migration.mjs && node scripts/test-quotation-migration.mjs",
     "typecheck": "npm run typecheck -w @cloudledger/web && npm run typecheck -w @cloudledger/api"
   },
   "devDependencies": {"concurrently": "^9.0.0"},
   "engines": {"node": ">=20"}
 }
-

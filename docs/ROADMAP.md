@@ -17,7 +17,8 @@
 
 - [x] Customers and GST sales invoices
 - [x] Automatic receivable, sales and output-GST journal posting
-- [ ] Suppliers, quotations and orders
+- [x] Sales quotation drafts, approval and controlled invoice conversion
+- [ ] Sales orders and purchase orders
 - [x] Bills, customer receipts and supplier payments with safe reversal
 - [ ] Credit/debit notes and sales quotations/orders
 - [x] Historical receivable/payable aging by document and allocated-payment date
