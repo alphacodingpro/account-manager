@@ -3,6 +3,7 @@ import { Eye, FilePlus2, FileSearch, Pencil, Plus, RotateCcw, Trash2, UserPlus, 
 import { supabase } from "./lib/supabase";
 import DocumentImport, { type ReviewedDocument } from "./DocumentImport";
 import PurchaseBillDetails from "./PurchaseBillDetails";
+import PurchaseOrders from "./PurchaseOrders";
 
 type Branch = { id: string; name: string; active: boolean };
 type Account = { id: string; code: string; name: string; type: string; active: boolean };
@@ -129,5 +130,5 @@ export default function PurchasesView({ companyId, branches, accounts, onAccount
     </form>}
     <div className="sales-table"><div className="purchase-row data-heading"><span>No.</span><span>Date</span><span>Supplier</span><span>Due</span><span>Total</span><span>Paid</span><span>Status</span><span>Actions</span></div>{bills.map((b) => <div className="purchase-row" key={b.id}><span className="code">BILL-{String(b.bill_number).padStart(6, "0")}</span><span>{b.bill_date}</span><span>{b.contacts?.name ?? "—"}</span><span>{b.due_date}</span><b>{b.status === "draft" ? "Draft" : pkr.format(Number(b.total))}</b><span>{pkr.format(Number(b.amount_paid))}</span><span className="status">{b.status}</span><span className="row-actions"><button type="button" title="View bill" aria-label={`View bill ${b.bill_number}`} onClick={()=>setViewingBillId(b.id)}><Eye size={14}/></button>{b.status==="draft"&&<button title="Edit draft" onClick={()=>editBill(b.id)}><Pencil size={14}/></button>}{["draft","posted"].includes(b.status)&&<button className="danger" title={b.status==="draft"?"Delete":"Void"} onClick={()=>removeOrVoidBill(b)}>{b.status==="draft"?<Trash2 size={14}/>:<RotateCcw size={14}/>}</button>}</span></div>)}</div>
     {viewingBillId && <PurchaseBillDetails key={`${companyId}:${viewingBillId}`} companyId={companyId} billId={viewingBillId} onClose={()=>setViewingBillId("")} onEdit={()=>{const id=viewingBillId;setViewingBillId("");void editBill(id);}}/>}
-  </article></div>;
+  </article><PurchaseOrders companyId={companyId} branches={branches} suppliers={suppliers} products={products} warehouses={warehouses} accounts={accounts} onConverted={load}/></div>;
 }
