@@ -18,8 +18,8 @@
 - [x] Customers and GST sales invoices
 - [x] Automatic receivable, sales and output-GST journal posting
 - [x] Sales quotation drafts, approval and controlled invoice conversion
-- [x] Purchase order approval and controlled receiving into bill drafts
-- [ ] Sales orders and partial purchase receipts
+- [x] Purchase order approval and controlled partial receiving into bill drafts
+- [ ] Sales orders
 - [x] Bills, customer receipts and supplier payments with safe reversal
 - [ ] Credit/debit notes and sales quotations/orders
 - [x] Historical receivable/payable aging by document and allocated-payment date

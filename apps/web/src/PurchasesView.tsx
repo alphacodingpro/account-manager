@@ -11,8 +11,8 @@ type Supplier = { id: string; name: string };
 type Product = { id: string; name: string; purchase_price: number; gst_rate: number; is_service: boolean };
 type Warehouse = { id: string; branch_id: string; name: string };
 type Bill = { id: string; bill_number: number; bill_date: string; due_date: string; status: string; total: number; amount_paid: number; contacts: { name: string } | null };
-type Line = { productId: string; accountId: string; description: string; quantity: string; unitPrice: string; gstRate: string };
-const blank = (): Line => ({ productId: "", accountId: "", description: "", quantity: "1", unitPrice: "", gstRate: "0" });
+type Line = { productId: string; accountId: string; sourceLineId: string; description: string; quantity: string; unitPrice: string; gstRate: string };
+const blank = (): Line => ({ productId: "", accountId: "", sourceLineId: "", description: "", quantity: "1", unitPrice: "", gstRate: "0" });
 const pkr = new Intl.NumberFormat("en-PK", { style: "currency", currency: "PKR" });
 
 export default function PurchasesView({ companyId, branches, accounts, onAccountsChanged }: { companyId: string; branches: Branch[]; accounts: Account[]; onAccountsChanged: () => Promise<void> }) {
@@ -64,7 +64,7 @@ export default function PurchasesView({ companyId, branches, accounts, onAccount
   useEffect(() => { setViewingBillId(""); }, [companyId]);
   function chooseProduct(index: number, id: string) {
     const p = products.find((x) => x.id === id);
-    setLines((old) => old.map((l, i) => i === index ? { ...l, productId: id, description: p?.name ?? "", unitPrice: String(p?.purchase_price ?? ""), gstRate: String(p?.gst_rate ?? 0), accountId: p?.is_service ? (expenseAccounts[0]?.id ?? "") : "" } : l));
+    setLines((old) => old.map((l, i) => i === index ? { ...l, productId: id, sourceLineId: "", description: p?.name ?? "", unitPrice: String(p?.purchase_price ?? ""), gstRate: String(p?.gst_rate ?? 0), accountId: p?.is_service ? (expenseAccounts[0]?.id ?? "") : "" } : l));
   }
   function change(index: number, key: keyof Line, value: string) { setLines((old) => old.map((l, i) => i === index ? { ...l, [key]: value } : l)); }
   async function addSupplier(e: React.FormEvent) {
@@ -80,7 +80,7 @@ export default function PurchasesView({ companyId, branches, accounts, onAccount
   }
   function applyImportedDocument(reviewed: ReviewedDocument) {
     setSupplierId(reviewed.supplierId); setDate(reviewed.date); setDueDate(reviewed.date); setReference(reviewed.reference);
-    setLines(reviewed.lines.map((line) => ({ productId: "", accountId: line.accountId, description: line.description, quantity: String(line.quantity), unitPrice: line.unitPrice.toFixed(2), gstRate: String(line.gstRate) })));
+    setLines(reviewed.lines.map((line) => ({ productId: "", accountId: line.accountId, sourceLineId: "", description: line.description, quantity: String(line.quantity), unitPrice: line.unitPrice.toFixed(2), gstRate: String(line.gstRate) })));
     setEditingBillId(""); setImportedDraft(true); setImportSource(reviewed.sourceName); setDraftNotes(null); setBillOpen(true); setImportOpen(false);
     setMessage(`Values reviewed from ${reviewed.sourceName}. Check due date and bill lines, then save a draft.`);
   }
@@ -100,14 +100,14 @@ export default function PurchasesView({ companyId, branches, accounts, onAccount
       const payload={ company_id: companyId, branch_id: branchId, warehouse_id: warehouseId || null, supplier_id: supplierId, supplier_reference: reference.trim() || null, bill_date: date, due_date: dueDate, notes: importedDraft ? `Imported from ${importSource}; reviewed and saved as draft.` : draftNotes, created_by: auth.user.id };
       if(editingBillId){const updated=await supabase.from("purchase_bills").update(payload).eq("id",editingBillId).eq("status","draft");if(updated.error)throw updated.error;const removed=await supabase.from("purchase_bill_lines").delete().eq("bill_id",editingBillId);if(removed.error)throw removed.error;}
       else{const created = await supabase.from("purchase_bills").insert(payload).select("id").single();if (created.error) throw created.error; billId = created.data.id; createdNow=true;}
-      const inserted = await supabase.from("purchase_bill_lines").insert(lines.map((l) => ({ bill_id: billId, product_id: l.productId || null, expense_account_id: l.accountId || null, description: l.description, quantity: Number(l.quantity), unit_price: Number(l.unitPrice || 0), gst_rate: Number(l.gstRate || 0) })));
+      const inserted = await supabase.from("purchase_bill_lines").insert(lines.map((l) => ({ bill_id: billId, purchase_order_line_id: l.sourceLineId || null, product_id: l.productId || null, expense_account_id: l.accountId || null, description: l.description, quantity: Number(l.quantity), unit_price: Number(l.unitPrice || 0), gst_rate: Number(l.gstRate || 0) })));
       if (inserted.error) throw inserted.error;
       if(shouldPost){const posted = await supabase.rpc("post_purchase_bill", { target_bill: billId }); if (posted.error) throw posted.error;}
       setBillOpen(false); setLines([blank()]); setReference(""); setEditingBillId(""); setImportedDraft(false); setImportSource(""); setDraftNotes(null); setMessage(shouldPost ? "Purchase bill posted successfully." : "Bill draft saved successfully."); await load();
     } catch (error) { if (createdNow && billId) await supabase.from("purchase_bills").delete().eq("id", billId); setMessage(error instanceof Error ? error.message : "Unable to save bill."); }
     finally { setBusy(false); }
   }
-  async function editBill(id:string){const [h,d]=await Promise.all([supabase.from("purchase_bills").select("supplier_id,branch_id,warehouse_id,bill_date,due_date,supplier_reference,status,notes").eq("id",id).single(),supabase.from("purchase_bill_lines").select("product_id,expense_account_id,description,quantity,unit_price,gst_rate").eq("bill_id",id).order("id")]);if(h.error||d.error)return setMessage(h.error?.message||d.error?.message||"Unable to load draft.");if(h.data.status!=="draft")return setMessage("Only draft bills can be edited.");setEditingBillId(id);setImportedDraft(false);setImportSource("");setDraftNotes(h.data.notes);setSupplierId(h.data.supplier_id);setBranchId(h.data.branch_id);setWarehouseId(h.data.warehouse_id||"");setDate(h.data.bill_date);setDueDate(h.data.due_date);setReference(h.data.supplier_reference||"");setLines((d.data??[]).map(l=>({productId:l.product_id||"",accountId:l.expense_account_id||"",description:l.description,quantity:String(l.quantity),unitPrice:String(l.unit_price),gstRate:String(l.gst_rate)})));setBillOpen(true);setMessage("");}
+  async function editBill(id:string){const [h,d]=await Promise.all([supabase.from("purchase_bills").select("supplier_id,branch_id,warehouse_id,bill_date,due_date,supplier_reference,status,notes").eq("id",id).single(),supabase.from("purchase_bill_lines").select("purchase_order_line_id,product_id,expense_account_id,description,quantity,unit_price,gst_rate").eq("bill_id",id).order("id")]);if(h.error||d.error)return setMessage(h.error?.message||d.error?.message||"Unable to load draft.");if(h.data.status!=="draft")return setMessage("Only draft bills can be edited.");setEditingBillId(id);setImportedDraft(false);setImportSource("");setDraftNotes(h.data.notes);setSupplierId(h.data.supplier_id);setBranchId(h.data.branch_id);setWarehouseId(h.data.warehouse_id||"");setDate(h.data.bill_date);setDueDate(h.data.due_date);setReference(h.data.supplier_reference||"");setLines((d.data??[]).map(l=>({productId:l.product_id||"",accountId:l.expense_account_id||"",sourceLineId:l.purchase_order_line_id||"",description:l.description,quantity:String(l.quantity),unitPrice:String(l.unit_price),gstRate:String(l.gst_rate)})));setBillOpen(true);setMessage("");}
   async function removeOrVoidBill(bill:Bill){const action=bill.status==="draft"?"delete":"void";if(!confirm(`${action==="delete"?"Delete draft":"Void posted"} bill BILL-${String(bill.bill_number).padStart(6,"0")}?`))return;const result=action==="delete"?await supabase.from("purchase_bills").delete().eq("id",bill.id).eq("status","draft"):await supabase.rpc("void_purchase_bill",{target_bill:bill.id,target_reason:"Voided by user"});if(result.error)setMessage(result.error.message);else{setMessage(action==="delete"?"Bill draft deleted successfully.":"Bill voided with a reversing journal.");await load();}}
   return <div className="accounting-stack"><article className="panel data-panel">
     <div className="panel-head"><div><h3>Purchase bills</h3><p>Suppliers, input GST, stock and payables</p></div><div className="toolbar">
