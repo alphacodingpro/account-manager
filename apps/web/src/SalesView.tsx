@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { FilePlus2, Pencil, Plus, RotateCcw, Trash2, UserPlus, X } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import SalesQuotations from "./SalesQuotations";
+import SalesOrders from "./SalesOrders";
 type Branch = { id: string; name: string; active: boolean };
 type Contact = {
   id: string;
@@ -30,6 +31,7 @@ type Invoice = {
 };
 type Line = {
   productId: string;
+  sourceLineId: string;
   description: string;
   quantity: string;
   unitPrice: string;
@@ -37,6 +39,7 @@ type Line = {
 };
 const blank = (): Line => ({
   productId: "",
+  sourceLineId: "",
   description: "",
   quantity: "1",
   unitPrice: "",
@@ -155,6 +158,7 @@ export default function SalesView({
           ? {
               ...l,
               productId: id,
+              sourceLineId: "",
               description: product?.name ?? "",
               unitPrice: String(product?.sale_price ?? ""),
               gstRate: String(product?.gst_rate ?? 0),
@@ -202,6 +206,7 @@ export default function SalesView({
         .insert(
           lines.map((l) => ({
             invoice_id: invoiceId,
+            sales_order_line_id: l.sourceLineId || null,
             product_id: l.productId || null,
             description: l.description,
             quantity: Number(l.quantity),
@@ -228,11 +233,11 @@ export default function SalesView({
     }
   }
   async function editInvoice(id: string) {
-    const [header, detail] = await Promise.all([supabase.from("sales_invoices").select("customer_id,branch_id,invoice_date,due_date,reference,status").eq("id",id).single(),supabase.from("sales_invoice_lines").select("product_id,description,quantity,unit_price,gst_rate").eq("invoice_id",id).order("id")]);
+    const [header, detail] = await Promise.all([supabase.from("sales_invoices").select("customer_id,branch_id,invoice_date,due_date,reference,status").eq("id",id).single(),supabase.from("sales_invoice_lines").select("sales_order_line_id,product_id,description,quantity,unit_price,gst_rate").eq("invoice_id",id).order("id")]);
     if (header.error || detail.error) return setMessage(header.error?.message || detail.error?.message || "Unable to load draft.");
     if (header.data.status !== "draft") return setMessage("Only draft invoices can be edited.");
     setEditingInvoiceId(id); setCustomerId(header.data.customer_id); setBranchId(header.data.branch_id); setDate(header.data.invoice_date); setDueDate(header.data.due_date); setReference(header.data.reference || "");
-    setLines((detail.data ?? []).map((l) => ({ productId:l.product_id || "",description:l.description,quantity:String(l.quantity),unitPrice:String(l.unit_price),gstRate:String(l.gst_rate) })));
+    setLines((detail.data ?? []).map((l) => ({ productId:l.product_id || "",sourceLineId:l.sales_order_line_id || "",description:l.description,quantity:String(l.quantity),unitPrice:String(l.unit_price),gstRate:String(l.gst_rate) })));
     setInvoiceOpen(true); setMessage("");
   }
   async function removeOrVoidInvoice(invoice: Invoice) {
@@ -524,6 +529,7 @@ export default function SalesView({
         )}
       </article>
       <SalesQuotations companyId={companyId} branches={branches} onConverted={load}/>
+      <SalesOrders companyId={companyId} branches={branches} customers={contacts} products={products} onConverted={load}/>
     </div>
   );
 }

@@ -19,9 +19,9 @@
 - [x] Automatic receivable, sales and output-GST journal posting
 - [x] Sales quotation drafts, approval and controlled invoice conversion
 - [x] Purchase order approval and controlled partial receiving into bill drafts
-- [ ] Sales orders
+- [x] Sales orders with controlled partial delivery into invoice drafts
 - [x] Bills, customer receipts and supplier payments with safe reversal
-- [ ] Credit/debit notes and sales quotations/orders
+- [ ] Credit/debit notes
 - [x] Historical receivable/payable aging by document and allocated-payment date
 - PDF sales and purchase documents
 

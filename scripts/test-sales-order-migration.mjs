@@ -1,0 +1,17 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+const sql=readFileSync(new URL("../supabase/migrations/0022_sales_orders_partial_delivery.sql",import.meta.url),"utf8");
+assert.match(sql,/create table if not exists public\.sales_orders/);
+assert.match(sql,/has_company_permission\(o\.company_id,'sales'\)/);
+assert.match(sql,/approved sales order is immutable/i);
+assert.match(sql,/create_partial_sales_invoice/);
+assert.match(sql,/delivered quantity exceeds the sales-order balance/i);
+assert.match(sql,/valid_count<>requested_count/);
+assert.match(sql,/status<>'void'/);
+assert.match(sql,/security_invoker=true/);
+assert.match(sql,/every sales-order invoice line must reference/i);
+assert.match(sql,/company, branch and customer must match/i);
+assert.doesNotMatch(sql,/insert into public\.stock_movements/i);
+assert.doesNotMatch(sql,/insert into public\.journal_entries/i);
+assert.doesNotMatch(sql,/post_sales_invoice\(/i);
+console.log("Sales order and partial delivery migration safety checks passed.");
