@@ -21,7 +21,8 @@
 - [x] Purchase order approval and controlled partial receiving into bill drafts
 - [x] Sales orders with controlled partial delivery into invoice drafts
 - [x] Bills, customer receipts and supplier payments with safe reversal
-- [ ] Credit/debit notes
+- [x] Sales returns and credit notes with stock, GST and receivable reversal
+- [ ] Purchase returns and supplier debit notes
 - [x] Historical receivable/payable aging by document and allocated-payment date
 - PDF sales and purchase documents
 

@@ -3,6 +3,7 @@ import { FilePlus2, Pencil, Plus, RotateCcw, Trash2, UserPlus, X } from "lucide-
 import { supabase } from "./lib/supabase";
 import SalesQuotations from "./SalesQuotations";
 import SalesOrders from "./SalesOrders";
+import SalesCreditNotes from "./SalesCreditNotes";
 type Branch = { id: string; name: string; active: boolean };
 type Contact = {
   id: string;
@@ -528,6 +529,7 @@ export default function SalesView({
           </div>
         )}
       </article>
+      <SalesCreditNotes companyId={companyId} onChanged={load}/>
       <SalesQuotations companyId={companyId} branches={branches} onConverted={load}/>
       <SalesOrders companyId={companyId} branches={branches} customers={contacts} products={products} onConverted={load}/>
     </div>
