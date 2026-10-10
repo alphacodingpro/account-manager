@@ -22,7 +22,7 @@
 - [x] Sales orders with controlled partial delivery into invoice drafts
 - [x] Bills, customer receipts and supplier payments with safe reversal
 - [x] Sales returns and credit notes with stock, GST and receivable reversal
-- [ ] Purchase returns and supplier debit notes
+- [x] Purchase returns and supplier debit notes with stock, GST and payable reversal
 - [x] Historical receivable/payable aging by document and allocated-payment date
 - PDF sales and purchase documents
 
