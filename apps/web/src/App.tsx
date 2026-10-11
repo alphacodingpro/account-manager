@@ -567,6 +567,7 @@ function SettingsView({
                 </small>
               </span>
               <em>{b.active ? "Active" : "Inactive"}</em>
+
             </div>
           ))}
         </div>
@@ -597,6 +598,8 @@ function Dashboard({
 }) {
   const [menu, setMenu] = useState(false);
   const [view, setView] = useState<ViewName>("Overview");
+  const [bankingExpanded, setBankingExpanded] = useState(false);
+  const [bankingSection, setBankingSection] = useState<"accounts" | "transactions" | "reconciliation">("transactions");
   const [salesExpanded, setSalesExpanded] = useState(false);
   const [purchasesExpanded, setPurchasesExpanded] = useState(false);
   const [purchasesSection, setPurchasesSection] = useState<"bills" | "orders" | "returns">("bills");
@@ -770,11 +773,12 @@ function Dashboard({
             <div key={name}>
             <button
               className={view === name ? "active" : ""}
-              aria-expanded={name === "Sales" ? salesExpanded : name === "Purchases" ? purchasesExpanded : undefined}
-              aria-controls={name === "Sales" ? "sales-submenu" : name === "Purchases" ? "purchases-submenu" : undefined}
+              aria-expanded={name === "Sales" ? salesExpanded : name === "Purchases" ? purchasesExpanded : name === "Banking" ? bankingExpanded : undefined}
+              aria-controls={name === "Sales" ? "sales-submenu" : name === "Purchases" ? "purchases-submenu" : name === "Banking" ? "banking-submenu" : undefined}
               onClick={() => {
                 if (name === "Sales") { setSalesExpanded((open) => !open); return; }
                 if (name === "Purchases") { setPurchasesExpanded((open) => !open); return; }
+                if (name === "Banking") { setBankingExpanded((open) => !open); return; }
                 setView(name);
                 setMenu(false);
               }}
@@ -782,6 +786,7 @@ function Dashboard({
             >
               <Icon size={19} />
               {name}
+              {name === "Banking" && <ChevronDown size={15} style={{ marginLeft: "auto", transform: bankingExpanded ? "rotate(180deg)" : undefined }} />}
               {name === "Sales" && <ChevronDown size={15} style={{ marginLeft: "auto", transform: salesExpanded ? "rotate(180deg)" : undefined }} />}
               {name === "Purchases" && <ChevronDown size={15} style={{ marginLeft: "auto", transform: purchasesExpanded ? "rotate(180deg)" : undefined }} />}
             </button>
@@ -790,6 +795,9 @@ function Dashboard({
             </div>}
             {name === "Purchases" && purchasesExpanded && <div id="purchases-submenu" className="sales-submenu">
               {([["bills", "Purchase bills"], ["orders", "Purchase orders"], ["returns", "Returns & supplier debit notes"]] as const).map(([section, label]) => <button key={section} className={view === "Purchases" && purchasesSection === section ? "active" : ""} aria-current={view === "Purchases" && purchasesSection === section ? "page" : undefined} onClick={() => { setPurchasesSection(section); setView("Purchases"); setMenu(false); }}>{label}</button>)}
+            </div>}
+            {name === "Banking" && bankingExpanded && <div id="banking-submenu" className="sales-submenu">
+              {([["accounts", "Bank accounts"], ["transactions", "Receipts & payments"], ["reconciliation", "Bank reconciliation"]] as const).map(([section, label]) => <button key={section} className={view === "Banking" && bankingSection === section ? "active" : ""} aria-current={view === "Banking" && bankingSection === section ? "page" : undefined} onClick={() => { setBankingSection(section); setView("Banking"); setMenu(false); }}>{label}</button>)}
             </div>}
             </div>
           ))}
@@ -835,7 +843,7 @@ function Dashboard({
           <div className="page-title">
             <div>
               <p className="eyebrow"><span className="live-dot" /> {company?.name?.toUpperCase()}</p>
-              <h1>{view === "Overview" ? "Financial overview" : view === "Sales" ? ({invoices:"Sales invoices",quotations:"Sales quotations",orders:"Sales orders",returns:"Returns & credit notes"})[salesSection] : view === "Purchases" ? ({bills:"Purchase bills",orders:"Purchase orders",returns:"Returns & supplier debit notes"})[purchasesSection] : view}</h1>
+              <h1>{view === "Overview" ? "Financial overview" : view === "Sales" ? ({invoices:"Sales invoices",quotations:"Sales quotations",orders:"Sales orders",returns:"Returns & credit notes"})[salesSection] : view === "Purchases" ? ({bills:"Purchase bills",orders:"Purchase orders",returns:"Returns & supplier debit notes"})[purchasesSection] : view === "Banking" ? ({accounts:"Bank accounts",transactions:"Receipts & payments",reconciliation:"Bank reconciliation"})[bankingSection] : view}</h1>
               <p className="muted">
                 {view === "Overview"
                   ? "Live company data and accounting status."
@@ -869,7 +877,7 @@ function Dashboard({
             <PurchasesView key={`${companyId}:${purchasesSection}`} companyId={companyId} branches={branches} accounts={accounts} onAccountsChanged={loadCompanyData} section={purchasesSection} />
           )}{" "}
           {view === "Banking" && (
-            <BankingView companyId={companyId} branches={branches} accounts={accounts} />
+            <BankingView key={`${companyId}:${bankingSection}`} companyId={companyId} branches={branches} accounts={accounts} section={bankingSection} />
           )}{" "}
           {view === "Inventory" && <InventoryView companyId={companyId} />}{" "}
           {view === "Payroll" && <PayrollView companyId={companyId} branches={branches} />}{" "}
