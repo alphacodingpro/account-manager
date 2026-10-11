@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { FilePlus2, Pencil, Plus, RotateCcw, Trash2, UserPlus, Search, X } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import SalesQuotations from "./SalesQuotations";
+import SalesHistory from "./SalesHistory";
 import SalesOrders from "./SalesOrders";
 import SalesCreditNotes from "./SalesCreditNotes";
 type Branch = { id: string; name: string; active: boolean };
@@ -58,7 +59,7 @@ export default function SalesView({
 }: {
   companyId: string;
   branches: Branch[];
-  section?: "invoices" | "quotations" | "orders" | "returns";
+  section?: "invoices" | "quotations" | "orders" | "returns" | "history";
 }) {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -101,7 +102,7 @@ export default function SalesView({
   );
   const filteredInvoices = useMemo(() => {
     const terms = invoiceSearch.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
-    return invoices.filter(i => {
+    return invoices.filter(i => i.status !== "void").filter(i => {
       const values = [String(i.invoice_number), "INV-" + String(i.invoice_number).padStart(6,"0"), i.contacts?.name ?? "", i.reference ?? "", i.invoice_date, i.due_date, i.status, String(i.total), pkr.format(i.total), String(i.subtotal), String(i.gst_total)].join(" ").toLocaleLowerCase();
       return terms.every(term => values.includes(term));
     });
@@ -566,6 +567,7 @@ export default function SalesView({
           </div>
         )}
       </article>}
+      {section === "history" && <SalesHistory companyId={companyId}/>}
       {section === "returns" && <SalesCreditNotes companyId={companyId} onChanged={load}/>}
       {section === "quotations" && <SalesQuotations companyId={companyId} branches={branches} onConverted={load}/>}
       {section === "orders" && <SalesOrders companyId={companyId} branches={branches} customers={contacts} products={products} onConverted={load}/>}
