@@ -112,7 +112,7 @@ type ViewName =
 const plannedModules: Partial<Record<ViewName, string[]>> = {
   Sales: ["Customers", "Late Payment Fees", "Delivery Notes", "Billable Time", "Withholding Tax Receipts"],
   Purchases: ["Suppliers", "Purchase Quotes", "Goods Receipts"],
-  Banking: ["Receipts", "Payments", "Inter Account Transfers", "Expense Claims"],
+  Banking: ["Inter Account Transfers", "Expense Claims"],
   Inventory: ["Inventory Write-offs", "Production Orders"],
   Payroll: ["Payslips"],
   Settings: ["Customize"],
@@ -622,7 +622,7 @@ function Dashboard({
   const [inventoryExpanded, setInventoryExpanded] = useState(false);
   const [inventorySection, setInventorySection] = useState<"products" | "stock" | "adjustments" | "transfers" | "movements">("products");
   const [bankingExpanded, setBankingExpanded] = useState(false);
-  const [bankingSection, setBankingSection] = useState<"accounts" | "transactions" | "reconciliation">("transactions");
+  const [bankingSection, setBankingSection] = useState<"accounts" | "transactions" | "receipts" | "payments" | "reconciliation">("transactions");
   const [salesExpanded, setSalesExpanded] = useState(false);
   const [purchasesExpanded, setPurchasesExpanded] = useState(false);
   const [purchasesSection, setPurchasesSection] = useState<"bills" | "orders" | "returns">("bills");
@@ -828,7 +828,7 @@ function Dashboard({
               {([["bills", "Purchase bills"], ["orders", "Purchase orders"], ["returns", "Returns & supplier debit notes"]] as const).map(([section, label]) => <button key={section} className={view === "Purchases" && purchasesSection === section ? "active" : ""} aria-current={view === "Purchases" && purchasesSection === section ? "page" : undefined} onClick={() => { setPlannedModule(""); setPurchasesSection(section); setView("Purchases"); setMenu(false); }}>{label}</button>)}
             </div>}
             {name === "Banking" && bankingExpanded && <div id="banking-submenu" className="sales-submenu">
-              {([["accounts", "Bank accounts"], ["transactions", "Receipts & payments"], ["reconciliation", "Bank reconciliation"]] as const).map(([section, label]) => <button key={section} className={view === "Banking" && bankingSection === section ? "active" : ""} aria-current={view === "Banking" && bankingSection === section ? "page" : undefined} onClick={() => { setPlannedModule(""); setBankingSection(section); setView("Banking"); setMenu(false); }}>{label}</button>)}
+              {([["accounts", "Bank accounts"], ["receipts", "Receipts"], ["payments", "Payments"], ["transactions", "All transactions"], ["reconciliation", "Bank reconciliation"]] as const).map(([section, label]) => <button key={section} className={view === "Banking" && bankingSection === section ? "active" : ""} aria-current={view === "Banking" && bankingSection === section ? "page" : undefined} onClick={() => { setPlannedModule(""); setBankingSection(section); setView("Banking"); setMenu(false); }}>{label}</button>)}
             </div>}
             {name === "Inventory" && inventoryExpanded && <div id="inventory-submenu" className="sales-submenu">
               {([["products","Products & services"],["stock","Warehouse stock"],["adjustments","Stock adjustments"],["transfers","Warehouse transfers"],["movements","Stock movements"]] as const).map(([section,label]) => <button key={section} className={view === "Inventory" && inventorySection === section ? "active" : ""} aria-current={view === "Inventory" && inventorySection === section ? "page" : undefined} onClick={() => {setPlannedModule("");setInventorySection(section);setView("Inventory");setMenu(false);}}>{label}</button>)}
@@ -887,7 +887,7 @@ function Dashboard({
           <div className="page-title">
             <div>
               <p className="eyebrow"><span className="live-dot" /> {company?.name?.toUpperCase()}</p>
-              <h1>{plannedModule || (view === "Overview" ? "Financial overview" : view === "Sales" ? ({invoices:"Sales invoices",quotations:"Sales quotations",orders:"Sales orders",returns:"Returns & credit notes",history:"Sales history"})[salesSection] : view === "Purchases" ? ({bills:"Purchase bills",orders:"Purchase orders",returns:"Returns & supplier debit notes"})[purchasesSection] : view === "Banking" ? ({accounts:"Bank accounts",transactions:"Receipts & payments",reconciliation:"Bank reconciliation"})[bankingSection] : view === "Inventory" ? ({products:"Products & services",stock:"Warehouse stock",adjustments:"Stock adjustments",transfers:"Warehouse transfers",movements:"Stock movements"})[inventorySection] : view === "Payroll" ? ({employees:"Employees",attendance:"Daily attendance",leave:"Leave management",runs:"Payroll runs"})[payrollSection] : view === "Settings" ? ({company:"Company details",branches:"Branches",team:"Team & permissions"})[settingsSection] : view)}</h1>
+              <h1>{plannedModule || (view === "Overview" ? "Financial overview" : view === "Sales" ? ({invoices:"Sales invoices",quotations:"Sales quotations",orders:"Sales orders",returns:"Returns & credit notes",history:"Sales history"})[salesSection] : view === "Purchases" ? ({bills:"Purchase bills",orders:"Purchase orders",returns:"Returns & supplier debit notes"})[purchasesSection] : view === "Banking" ? ({accounts:"Bank accounts",transactions:"Receipts & payments",receipts:"Receipts",payments:"Payments",reconciliation:"Bank reconciliation"})[bankingSection] : view === "Inventory" ? ({products:"Products & services",stock:"Warehouse stock",adjustments:"Stock adjustments",transfers:"Warehouse transfers",movements:"Stock movements"})[inventorySection] : view === "Payroll" ? ({employees:"Employees",attendance:"Daily attendance",leave:"Leave management",runs:"Payroll runs"})[payrollSection] : view === "Settings" ? ({company:"Company details",branches:"Branches",team:"Team & permissions"})[settingsSection] : view)}</h1>
               <p className="muted">
                           {view === "Overview"
                   ? "Live company data and accounting status."
