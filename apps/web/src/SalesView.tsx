@@ -66,6 +66,7 @@ export default function SalesView({
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [customerOpen, setCustomerOpen] = useState(false);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [correctingPosted, setCorrectingPosted] = useState(false);
   const [editingInvoiceId, setEditingInvoiceId] = useState("");
   const [message, setMessage] = useState("");
   const [customer, setCustomer] = useState({
@@ -210,6 +211,12 @@ export default function SalesView({
           reference: reference || null,
           created_by: user.user.id,
         };
+      if (correctingPosted) {
+        const corrected = await supabase.rpc("save_sales_invoice_correction", {target_invoice:editingInvoiceId,header:payload,items:lines.map(l=>({sales_order_line_id:l.sourceLineId || null,product_id:l.productId || null,description:l.description,quantity:Number(l.quantity),unit_price:Number(l.unitPrice || 0),gst_rate:Number(l.gstRate || 0)})),should_post:shouldPost});
+        if (corrected.error) throw corrected.error;
+        setCorrectingPosted(false); setEditingInvoiceId(""); setCorrectingPosted(false); setInvoiceOpen(false); setLines([blank()]);
+        setMessage("Invoice changes saved successfully."); await load(); return;
+      }
       if (editingInvoiceId) {
         const updated = await supabase.from("sales_invoices").update(payload).eq("id", editingInvoiceId).eq("status", "draft");
         if (updated.error) throw updated.error;
@@ -236,7 +243,7 @@ export default function SalesView({
       setInvoiceOpen(false);
       setLines([blank()]);
       setReference("");
-      setEditingInvoiceId("");
+      setEditingInvoiceId(""); setCorrectingPosted(false);
       setMessage(shouldPost ? "Sales invoice posted successfully." : "Invoice draft saved successfully.");
       await load();
     } catch (error) {
@@ -252,20 +259,14 @@ export default function SalesView({
   async function editInvoice(id: string) {
     const [header, detail] = await Promise.all([supabase.from("sales_invoices").select("customer_id,branch_id,invoice_date,due_date,reference,status").eq("id",id).single(),supabase.from("sales_invoice_lines").select("sales_order_line_id,product_id,description,quantity,unit_price,gst_rate").eq("invoice_id",id).order("id")]);
     if (header.error || detail.error) return setMessage(header.error?.message || detail.error?.message || "Unable to load draft.");
-    if (header.data.status !== "draft") return setMessage("Only draft invoices can be edited.");
+    if (!["draft","posted"].includes(header.data.status)) return setMessage("Reverse allocated receipts before editing this invoice.");
+    setCorrectingPosted(header.data.status === "posted");
     setEditingInvoiceId(id); setCustomerId(header.data.customer_id); setBranchId(header.data.branch_id); setDate(header.data.invoice_date); setDueDate(header.data.due_date); setReference(header.data.reference || "");
     setLines((detail.data ?? []).map((l) => ({ productId:l.product_id || "",sourceLineId:l.sales_order_line_id || "",description:l.description,quantity:String(l.quantity),unitPrice:String(l.unit_price),gstRate:String(l.gst_rate) })));
     setInvoiceOpen(true); setMessage("");
   }
   async function correctInvoice(invoice: Invoice) {
-    if (invoice.status === "draft") return editInvoice(invoice.id);
-    const reason = prompt("Edit posted invoice: the original will be reversed and an editable replacement draft created. Enter the correction reason:");
-    if (!reason || reason.trim().length < 3) return;
-    setBusy(true);
-    const result = await supabase.rpc("correct_sales_invoice", {target_invoice: invoice.id, target_reason: reason.trim()});
-    if (result.error) setMessage(result.error.message);
-    else { await load(); await editInvoice(result.data as string); }
-    setBusy(false);
+    return editInvoice(invoice.id);
   }
   async function removeOrVoidInvoice(invoice: Invoice) {
     const action=invoice.status === "draft" ? "delete" : "void";
@@ -290,7 +291,7 @@ export default function SalesView({
             </button>
             <button
               className="primary small-button"
-              onClick={() => { setInvoiceOpen((v) => !v); setEditingInvoiceId(""); setLines([blank()]); }}
+              onClick={() => { setInvoiceOpen((v) => !v); setEditingInvoiceId(""); setCorrectingPosted(false); setLines([blank()]); }}
             >
               <FilePlus2 size={16} /> New invoice
             </button>
@@ -555,7 +556,7 @@ export default function SalesView({
                 <b>{pkr.format(i.total)}</b>
                 <span className="status">{i.status}</span>
                 <span className="row-actions">
-                  {["draft","posted"].includes(i.status) && <button className="outline" disabled={busy} title={i.status === "draft" ? "Edit draft" : "Reverse original and create correction draft"} onClick={() => void correctInvoice(i)}><Pencil size={14}/> Edit</button>}
+                  {["draft","posted"].includes(i.status) && <button className="outline" disabled={busy} title="Edit invoice" onClick={() => void correctInvoice(i)}><Pencil size={14}/> Edit</button>}
                   {["draft","posted"].includes(i.status) && <button className="danger invoice-action" disabled={busy} title={i.status === "draft" ? "Delete draft" : "Delete by reversing posted invoice"} onClick={() => void removeOrVoidInvoice(i)}><Trash2 size={14}/> Delete</button>}
                   {i.status === "paid" && <small>Reverse receipt before editing</small>}
                   {i.status === "void" && <small>Reversed</small>}
