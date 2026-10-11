@@ -243,9 +243,19 @@ export default function SalesView({
     setLines((detail.data ?? []).map((l) => ({ productId:l.product_id || "",sourceLineId:l.sales_order_line_id || "",description:l.description,quantity:String(l.quantity),unitPrice:String(l.unit_price),gstRate:String(l.gst_rate) })));
     setInvoiceOpen(true); setMessage("");
   }
+  async function correctInvoice(invoice: Invoice) {
+    if (invoice.status === "draft") return editInvoice(invoice.id);
+    const reason = prompt("Edit posted invoice: the original will be reversed and an editable replacement draft created. Enter the correction reason:");
+    if (!reason || reason.trim().length < 3) return;
+    setBusy(true);
+    const result = await supabase.rpc("correct_sales_invoice", {target_invoice: invoice.id, target_reason: reason.trim()});
+    if (result.error) setMessage(result.error.message);
+    else { await load(); await editInvoice(result.data as string); }
+    setBusy(false);
+  }
   async function removeOrVoidInvoice(invoice: Invoice) {
     const action=invoice.status === "draft" ? "delete" : "void";
-    if (!confirm(`${action === "delete" ? "Delete draft" : "Void posted"} invoice INV-${String(invoice.invoice_number).padStart(6,"0")}?`)) return;
+    if (!confirm(`${action === "delete" ? "Delete draft" : "Delete by reversing posted"} invoice INV-${String(invoice.invoice_number).padStart(6,"0")}?`)) return;
     const result=action === "delete" ? await supabase.from("sales_invoices").delete().eq("id",invoice.id).eq("status","draft") : await supabase.rpc("void_sales_invoice",{target_invoice:invoice.id,target_reason:"Voided by user"});
     if(result.error)setMessage(result.error.message);else{setMessage(action === "delete" ? "Invoice draft deleted successfully." : "Invoice voided with a reversing journal.");await load();}
   }
@@ -525,7 +535,12 @@ export default function SalesView({
                 <span>{pkr.format(i.gst_total)}</span>
                 <b>{pkr.format(i.total)}</b>
                 <span className="status">{i.status}</span>
-                <span className="row-actions">{i.status === "draft" && <button title="Edit draft" onClick={() => editInvoice(i.id)}><Pencil size={14}/></button>}{["draft","posted"].includes(i.status) && <button className="danger" title={i.status === "draft" ? "Delete" : "Void"} onClick={() => removeOrVoidInvoice(i)}>{i.status === "draft" ? <Trash2 size={14}/> : <RotateCcw size={14}/>}</button>}</span>
+                <span className="row-actions">
+                  {["draft","posted"].includes(i.status) && <button className="outline" disabled={busy} title={i.status === "draft" ? "Edit draft" : "Reverse original and create correction draft"} onClick={() => void correctInvoice(i)}><Pencil size={14}/> Edit</button>}
+                  {["draft","posted"].includes(i.status) && <button className="danger invoice-action" disabled={busy} title={i.status === "draft" ? "Delete draft" : "Delete by reversing posted invoice"} onClick={() => void removeOrVoidInvoice(i)}><Trash2 size={14}/> Delete</button>}
+                  {i.status === "paid" && <small>Reverse receipt before editing</small>}
+                  {i.status === "void" && <small>Reversed</small>}
+                </span>
               </div>
             ))}
           </div>

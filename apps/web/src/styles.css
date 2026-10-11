@@ -36,3 +36,7 @@
 .app-shell>aside>*{flex-shrink:0}
 .app-shell>aside::-webkit-scrollbar{width:6px}
 .app-shell>aside::-webkit-scrollbar-thumb{background:#52738d;border-radius:6px}
+.sales-table:has(.row-actions button.outline) .sales-row{grid-template-columns:1fr .75fr 1.35fr .85fr .65fr .85fr .65fr 170px;min-width:1050px}
+.sales-table .row-actions button.outline,.sales-table .row-actions button.danger:has(svg+*){width:auto}
+.sales-table .row-actions button.outline{display:flex;gap:5px;padding:6px 9px;height:auto}
+.sales-table .row-actions button.invoice-action{display:flex;gap:5px;padding:6px 9px;width:auto;height:auto}
