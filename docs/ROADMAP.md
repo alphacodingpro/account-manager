@@ -51,3 +51,15 @@
 - Attendance, leave, salary, allowances, deductions and loans
 - Configurable EOBI, SESSI and income-tax rules with effective dates
 - Payslips and automatic accounting entries
+
+### Manager-style sales entry parity (retain current design)
+- [x] Invoice date, customer, reference, quantity, unit price and add line
+- [x] Specific due date or Net days (0–3650)
+- [x] Save draft / Post and add another (reset lines/reference only after success)
+- [ ] Invoice billing-address snapshot and header description
+- [ ] Per-line income account and discount with GST/accounting validation
+- [ ] Line number / description / discount column controls
+- [ ] Rounding with explicit ledger adjustment
+- [ ] Early-payment discounts and late-payment fees with auditable posting
+- [ ] Print: words/base-currency totals, custom title, hide due date/balance
+- [ ] Item images, delivery-note mode, footers and attachment upload

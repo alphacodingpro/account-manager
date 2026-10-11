@@ -191,12 +191,21 @@ export default function SalesView({
       old.map((l, i) => (i === index ? { ...l, [key]: value } : l)),
     );
   }
-  async function saveInvoice(shouldPost: boolean) {
+  const [dueMode, setDueMode] = useState("date");
+  const [netDays, setNetDays] = useState("30");
+  useEffect(() => {
+    if (dueMode !== "net" || !date || !/^\d+$/.test(netDays)) return;
+    const value = new Date(`${date}T00:00:00Z`);
+    value.setUTCDate(value.getUTCDate() + Number(netDays));
+    if (!Number.isNaN(value.getTime())) setDueDate(value.toISOString().slice(0, 10));
+  }, [date, dueMode, netDays]);
+  async function saveInvoice(shouldPost: boolean, addAnother = false) {
     setMessage("");
     if (!customerId || !branchId)
       return setMessage("Select a customer and branch.");
     if (lines.some((l) => !l.description || Number(l.quantity) <= 0))
       return setMessage("Every invoice line needs an item and quantity.");
+    if (dueMode === "net" && (!/^\d+$/.test(netDays) || Number(netDays) > 3650)) return setMessage("Net terms must be between 0 and 3650 days.");
     setBusy(true);
     let invoiceId = editingInvoiceId;
     let createdNow = false;
@@ -215,7 +224,7 @@ export default function SalesView({
       if (correctingPosted) {
         const corrected = await supabase.rpc("save_sales_invoice_correction", {target_invoice:editingInvoiceId,header:payload,items:lines.map(l=>({sales_order_line_id:l.sourceLineId || null,product_id:l.productId || null,description:l.description,quantity:Number(l.quantity),unit_price:Number(l.unitPrice || 0),gst_rate:Number(l.gstRate || 0)})),should_post:shouldPost});
         if (corrected.error) throw corrected.error;
-        setCorrectingPosted(false); setEditingInvoiceId(""); setCorrectingPosted(false); setInvoiceOpen(false); setLines([blank()]);
+        setCorrectingPosted(false); setEditingInvoiceId(""); setInvoiceOpen(addAnother); setLines([blank()]); setReference("");
         setMessage("Invoice changes saved successfully."); await load(); return;
       }
       if (editingInvoiceId) {
@@ -241,7 +250,7 @@ export default function SalesView({
         );
       if (inserted.error) throw inserted.error;
       if (shouldPost) { const posted = await supabase.rpc("post_sales_invoice", { target_invoice: invoiceId }); if (posted.error) throw posted.error; }
-      setInvoiceOpen(false);
+      setInvoiceOpen(addAnother);
       setLines([blank()]);
       setReference("");
       setEditingInvoiceId(""); setCorrectingPosted(false);
@@ -262,7 +271,7 @@ export default function SalesView({
     if (header.error || detail.error) return setMessage(header.error?.message || detail.error?.message || "Unable to load draft.");
     if (!["draft","posted"].includes(header.data.status)) return setMessage("Reverse allocated receipts before editing this invoice.");
     setCorrectingPosted(header.data.status === "posted");
-    setEditingInvoiceId(id); setCustomerId(header.data.customer_id); setBranchId(header.data.branch_id); setDate(header.data.invoice_date); setDueDate(header.data.due_date); setReference(header.data.reference || "");
+    setDueMode("date"); setEditingInvoiceId(id); setCustomerId(header.data.customer_id); setBranchId(header.data.branch_id); setDate(header.data.invoice_date); setDueDate(header.data.due_date); setReference(header.data.reference || "");
     setLines((detail.data ?? []).map((l) => ({ productId:l.product_id || "",sourceLineId:l.sales_order_line_id || "",description:l.description,quantity:String(l.quantity),unitPrice:String(l.unit_price),gstRate:String(l.gst_rate) })));
     setInvoiceOpen(true); setMessage("");
   }
@@ -399,10 +408,19 @@ export default function SalesView({
                 />
               </label>
               <label>
+                Due terms
+                <select value={dueMode} onChange={(e) => setDueMode(e.target.value)}>
+                  <option value="date">Specific date</option>
+                  <option value="net">Net days</option>
+                </select>
+              </label>
+              {dueMode === "net" && <label>Days after invoice date<input type="number" min="0" max="3650" step="1" value={netDays} onChange={(e) => setNetDays(e.target.value)} required /></label>}
+              <label>
                 Due date
                 <input
                   type="date"
                   value={dueDate}
+                  readOnly={dueMode === "net"}
                   onChange={(e) => setDueDate(e.target.value)}
                   required
                 />
@@ -517,6 +535,8 @@ export default function SalesView({
                 Cancel
               </button>
               <button type="button" className="outline" disabled={busy || totals.total <= 0} onClick={() => saveInvoice(false)}>Save draft</button>
+              <button type="button" className="outline" disabled={busy || totals.total <= 0} onClick={() => saveInvoice(false, true)}>Save draft & add another</button>
+              <button type="button" className="outline" disabled={busy || totals.total <= 0} onClick={() => saveInvoice(true, true)}>Post & add another</button>
               <button className="primary" disabled={busy || totals.total <= 0}>
                 {busy ? "Saving..." : editingInvoiceId ? "Update & post" : "Post invoice"}
               </button>
