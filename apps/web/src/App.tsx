@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { isSupabaseConfigured, supabase } from "./lib/supabase";
 import AccountingView from "./AccountingView";
+import AccountHistory from "./AccountHistory";
 import SalesView from "./SalesView";
 import InventoryView from "./InventoryView";
 import PurchasesView from "./PurchasesView";
@@ -105,7 +106,8 @@ type ViewName =
   | "Inventory"
   | "Payroll"
   | "Reports"
-  | "Settings";
+  | "Settings"
+  | "History";
 type AccessRole = "owner" | "admin" | "accountant" | "sales" | "purchases" | "inventory" | "payroll" | "viewer" | "custom";
 const money = new Intl.NumberFormat("en-PK", {
   style: "currency",
@@ -122,6 +124,7 @@ const nav: [ViewName, typeof LayoutDashboard][] = [
   ["Payroll", Users],
   ["Reports", BarChart3],
   ["Settings", Settings],
+  ["History", FileText],
 ];
 
 function Login({ onDemo }: { onDemo: () => void }) {
@@ -904,6 +907,7 @@ function Dashboard({
           )}{" "}
           {view === "Inventory" && <InventoryView key={`${companyId}:${inventorySection}`} companyId={companyId} section={inventorySection} />}{" "}
           {view === "Payroll" && <PayrollView key={`${companyId}:${payrollSection}`} companyId={companyId} branches={branches} section={payrollSection} />}{" "}
+          {view === "History" && <AccountHistory key={companyId} companyId={companyId}/>}
           {view === "Reports" && <ReportsView companyId={companyId} />}{" "}
           {view === "Settings" && company && (
             <SettingsView
@@ -924,6 +928,7 @@ function Dashboard({
             "Payroll",
             "Reports",
             "Settings",
+            "History",
           ].includes(view) && <Placeholder title={view} />}
         </section>
       </main>
