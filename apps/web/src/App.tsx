@@ -1,3 +1,4 @@
+import { ContactsView } from "./ContactsView";
 import { useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import {
@@ -840,7 +841,7 @@ function Dashboard({
             </div>}
             {name === "Accounting" && view === "Accounting" && <div className="sales-submenu"><button className={!plannedModule ? "active" : ""} onClick={() => {setPlannedModule("");setMenu(false);}}>Journal Entries & Chart of Accounts</button></div>}
             {plannedModules[name] && ((name === "Sales" && salesExpanded) || (name === "Purchases" && purchasesExpanded) || (name === "Banking" && bankingExpanded) || (name === "Inventory" && inventoryExpanded) || (name === "Payroll" && payrollExpanded) || (name === "Settings" && settingsExpanded) || (name === "Accounting" && view === "Accounting")) && <div className="sales-submenu planned-submenu">
-              {plannedModules[name]?.map(label => <button key={label} className={view === name && plannedModule === label ? "active" : ""} aria-current={view === name && plannedModule === label ? "page" : undefined} onClick={() => {setView(name);setPlannedModule(label);setMenu(false);}}><span>{label}</span><small>Planned</small></button>)}
+              {plannedModules[name]?.map(label => <button key={label} className={view === name && plannedModule === label ? "active" : ""} aria-current={view === name && plannedModule === label ? "page" : undefined} onClick={() => {setView(name);setPlannedModule(label);setMenu(false);}}><span>{label}</span>{!["Customers","Suppliers"].includes(label) && <small>Planned</small>}</button>)}
             </div>}
             </div>
           ))}
@@ -898,7 +899,8 @@ function Dashboard({
             </select>
           </div>
           {error && <p className="alert">{error}</p>}
-                {plannedModule && <article className="panel planned-module-panel"><span className="status-badge">Coming soon</span><h2>{plannedModule}</h2><p>This module is planned. Entry forms, accounting rules and reports are not available yet.</p><button className="outline" onClick={() => setPlannedModule("")}>Back to {view}</button></article>}
+                {["Customers","Suppliers"].includes(plannedModule) && <ContactsView key={`${companyId}:${plannedModule}`} companyId={companyId} kind={plannedModule === "Customers" ? "customer" : "supplier"}/>}
+                {plannedModule && !["Customers","Suppliers"].includes(plannedModule) && <article className="panel planned-module-panel"><span className="status-badge">Coming soon</span><h2>{plannedModule}</h2><p>This module is planned. Entry forms, accounting rules and reports are not available yet.</p><button className="outline" onClick={() => setPlannedModule("")}>Back to {view}</button></article>}
           {!plannedModule && <>
           {view === "Overview" && (
             <Overview

@@ -63,3 +63,19 @@
 - [ ] Early-payment discounts and late-payment fees with auditable posting
 - [ ] Print: words/base-currency totals, custom title, hide due date/balance
 - [ ] Item images, delivery-note mode, footers and attachment upload
+
+### Planned sidebar module implementation queue
+- [x] Customers and Suppliers: company-scoped paginated directory, search, create/edit, NTN/STRN and safe deactivation/reactivation
+- [ ] Dedicated Receipts and Payments pages; Inter Account Transfers
+- [ ] Expense Claims and Billable Time
+- [ ] Delivery Notes and Goods Receipts
+- [ ] Purchase Quotes
+- [ ] Inventory Write-offs and Production Orders
+- [ ] Payslips directory
+- [ ] Projects
+- [ ] Fixed Assets and Depreciation Entries
+- [ ] Intangible Assets and Amortization Entries
+- [ ] Investments, Capital Accounts and Special Accounts
+- [ ] Withholding Tax Receipts and Late Payment Fees
+- [ ] Folders and Customize
+Every transactional module requires company/role enforcement, draft review, balanced posting, audit-safe cancellation and relevant validation before its Planned badge is removed.

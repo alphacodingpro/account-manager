@@ -60,3 +60,5 @@
 @media(max-width:560px){.sales-entry-form{padding:12px}.sales-entry-form .invoice-meta{grid-template-columns:1fr}.sales-entry-form .entry-repeat{flex-basis:100%;margin-bottom:6px}.sales-entry-form .sales-entry-actions button{min-height:40px}}
 
 .planned-submenu button{display:flex;align-items:center;justify-content:space-between;gap:8px}.planned-submenu button span{text-align:left}.planned-submenu small{font-size:9px;font-weight:500;color:#9eb6cc;border:1px solid #31526f;border-radius:4px;padding:2px 4px}.planned-module-panel{padding:24px}.planned-module-panel h2{margin:14px 0 8px}.planned-module-panel p{color:#71869a;line-height:1.6}.planned-module-panel button{font-size:12px;padding:8px 12px}
+
+.contacts-table{width:100%;border-collapse:collapse;font-size:12px;min-width:760px}.contacts-table th{text-align:left;font-size:10px;color:#71869a;background:#f7f9fc}.contacts-table th,.contacts-table td{padding:12px;border-bottom:1px solid #e2eaf1;vertical-align:top}.contacts-table td{line-height:1.6;overflow-wrap:anywhere}.contacts-table button{font-size:11px;padding:5px 8px;min-height:30px}
