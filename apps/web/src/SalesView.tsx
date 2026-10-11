@@ -53,9 +53,11 @@ const pkr = new Intl.NumberFormat("en-PK", {
 export default function SalesView({
   companyId,
   branches,
+  section = "invoices",
 }: {
   companyId: string;
   branches: Branch[];
+  section?: "invoices" | "quotations" | "orders" | "returns";
 }) {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -249,7 +251,7 @@ export default function SalesView({
   }
   return (
     <div className="accounting-stack">
-      <article className="panel data-panel">
+      {section === "invoices" && <article className="panel data-panel">
         <div className="panel-head">
           <div>
             <h3>Sales invoices</h3>
@@ -528,10 +530,10 @@ export default function SalesView({
             ))}
           </div>
         )}
-      </article>
-      <SalesCreditNotes companyId={companyId} onChanged={load}/>
-      <SalesQuotations companyId={companyId} branches={branches} onConverted={load}/>
-      <SalesOrders companyId={companyId} branches={branches} customers={contacts} products={products} onConverted={load}/>
+      </article>}
+      {section === "returns" && <SalesCreditNotes companyId={companyId} onChanged={load}/>}
+      {section === "quotations" && <SalesQuotations companyId={companyId} branches={branches} onConverted={load}/>}
+      {section === "orders" && <SalesOrders companyId={companyId} branches={branches} customers={contacts} products={products} onConverted={load}/>}
     </div>
   );
 }

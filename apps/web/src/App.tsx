@@ -597,6 +597,8 @@ function Dashboard({
 }) {
   const [menu, setMenu] = useState(false);
   const [view, setView] = useState<ViewName>("Overview");
+  const [salesExpanded, setSalesExpanded] = useState(false);
+  const [salesSection, setSalesSection] = useState<"invoices" | "quotations" | "orders" | "returns">("invoices");
   const [companies, setCompanies] = useState<Company[]>([]);
   const [companyId, setCompanyId] = useState("");
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -763,9 +765,13 @@ function Dashboard({
         )}
         <nav>
           {nav.filter(([name]) => accessRole !== "sales" || ["Overview", "Sales", "Reports"].includes(name)).filter(([name]) => accessRole !== "purchases" || ["Overview", "Purchases", "Reports"].includes(name)).filter(([name]) => accessRole !== "inventory" || ["Overview", "Inventory", "Reports"].includes(name)).filter(([name]) => accessRole !== "payroll" || ["Overview", "Payroll", "Reports"].includes(name)).filter(([name]) => accessRole !== "viewer" || ["Overview", "Reports"].includes(name)).map(([name, Icon]) => (
+            <div key={name}>
             <button
               className={view === name ? "active" : ""}
+              aria-expanded={name === "Sales" ? salesExpanded : undefined}
+              aria-controls={name === "Sales" ? "sales-submenu" : undefined}
               onClick={() => {
+                if (name === "Sales") { setSalesExpanded((open) => !open); return; }
                 setView(name);
                 setMenu(false);
               }}
@@ -773,7 +779,12 @@ function Dashboard({
             >
               <Icon size={19} />
               {name}
+              {name === "Sales" && <ChevronDown size={15} style={{ marginLeft: "auto", transform: salesExpanded ? "rotate(180deg)" : undefined }} />}
             </button>
+            {name === "Sales" && salesExpanded && <div id="sales-submenu" className="sales-submenu">
+              {([["invoices", "Sales invoices"], ["quotations", "Sales quotations"], ["orders", "Sales orders"], ["returns", "Returns & credit notes"]] as const).map(([section, label]) => <button key={section} className={view === "Sales" && salesSection === section ? "active" : ""} aria-current={view === "Sales" && salesSection === section ? "page" : undefined} onClick={() => { setSalesSection(section); setView("Sales"); setMenu(false); }}>{label}</button>)}
+            </div>}
+            </div>
           ))}
         </nav>
         <div className="user">
@@ -817,7 +828,7 @@ function Dashboard({
           <div className="page-title">
             <div>
               <p className="eyebrow"><span className="live-dot" /> {company?.name?.toUpperCase()}</p>
-              <h1>{view === "Overview" ? "Financial overview" : view}</h1>
+              <h1>{view === "Overview" ? "Financial overview" : view === "Sales" ? ({invoices:"Sales invoices",quotations:"Sales quotations",orders:"Sales orders",returns:"Returns & credit notes"})[salesSection] : view}</h1>
               <p className="muted">
                 {view === "Overview"
                   ? "Live company data and accounting status."
@@ -845,7 +856,7 @@ function Dashboard({
             />
           )}{" "}
           {view === "Sales" && (
-            <SalesView companyId={companyId} branches={branches} />
+            <SalesView key={`${companyId}:${salesSection}`} companyId={companyId} branches={branches} section={salesSection} />
           )}{" "}
           {view === "Purchases" && (
             <PurchasesView companyId={companyId} branches={branches} accounts={accounts} onAccountsChanged={loadCompanyData} />
