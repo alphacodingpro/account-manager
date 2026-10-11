@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { FilePlus2, Pencil, Plus, RotateCcw, Trash2, UserPlus, X } from "lucide-react";
+import { FilePlus2, Pencil, Plus, RotateCcw, Trash2, UserPlus, Search, X } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import SalesQuotations from "./SalesQuotations";
 import SalesOrders from "./SalesOrders";
@@ -23,6 +23,7 @@ type Invoice = {
   id: string;
   invoice_number: number;
   invoice_date: string;
+  reference: string | null;
   due_date: string;
   status: string;
   subtotal: number;
@@ -61,6 +62,7 @@ export default function SalesView({
 }) {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [invoiceSearch, setInvoiceSearch] = useState("");
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [customerOpen, setCustomerOpen] = useState(false);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
@@ -96,6 +98,25 @@ export default function SalesView({
       ),
     [lines],
   );
+  const filteredInvoices = useMemo(() => {
+    const terms = invoiceSearch.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    return invoices.filter(i => {
+      const values = [String(i.invoice_number), "INV-" + String(i.invoice_number).padStart(6,"0"), i.contacts?.name ?? "", i.reference ?? "", i.invoice_date, i.due_date, i.status, String(i.total), pkr.format(i.total), String(i.subtotal), String(i.gst_total)].join(" ").toLocaleLowerCase();
+      return terms.every(term => values.includes(term));
+    });
+  }, [invoices, invoiceSearch]);
+  async function loadInvoiceList() {
+    const rows: Invoice[] = [];
+    for (let offset = 0; ; offset += 500) {
+      const result = await supabase.from("sales_invoices")
+        .select("id,invoice_number,invoice_date,due_date,reference,status,subtotal,gst_total,total,contacts(name)")
+        .eq("company_id", companyId).order("invoice_date", {ascending:false}).order("id")
+        .range(offset, offset + 499);
+      if (result.error) return {data:null,error:result.error};
+      rows.push(...((result.data ?? []) as unknown as Invoice[]));
+      if ((result.data?.length ?? 0) < 500) return {data:rows,error:null};
+    }
+  }
   async function load() {
     const [c, p, i] = await Promise.all([
       supabase
@@ -111,14 +132,7 @@ export default function SalesView({
         .eq("company_id", companyId)
         .eq("active", true)
         .order("name"),
-      supabase
-        .from("sales_invoices")
-        .select(
-          "id,invoice_number,invoice_date,due_date,status,subtotal,gst_total,total,contacts(name)",
-        )
-        .eq("company_id", companyId)
-        .order("invoice_date", { ascending: false })
-        .limit(30),
+      loadInvoiceList(),
     ]);
     if (c.error || p.error || i.error)
       setMessage(
@@ -507,6 +521,11 @@ export default function SalesView({
             </div>
           </form>
         )}{" "}
+        <div className="invoice-list-toolbar">
+          <label className="invoice-list-search"><Search size={16}/><input type="search" aria-label="Search sales invoices" placeholder="Search invoices…" value={invoiceSearch} onChange={e => setInvoiceSearch(e.target.value)}/></label>
+          <small role="status">{filteredInvoices.length} of {invoices.length} invoices</small>
+        </div>
+        {invoices.length > 0 && filteredInvoices.length === 0 && <div className="mini-empty"><Search/><p>No invoices match your search.</p><button className="outline" onClick={() => setInvoiceSearch("")}>Clear search</button></div>}
         {invoices.length === 0 ? (
           <div className="mini-empty">
             <FilePlus2 />
@@ -524,7 +543,7 @@ export default function SalesView({
               <span>Status</span>
               <span>Actions</span>
             </div>
-            {invoices.map((i) => (
+            {filteredInvoices.map((i) => (
               <div className="sales-row" key={i.id}>
                 <span className="code">
                   INV-{String(i.invoice_number).padStart(6, "0")}

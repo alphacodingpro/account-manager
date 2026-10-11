@@ -40,3 +40,7 @@
 .sales-table .row-actions button.outline,.sales-table .row-actions button.danger:has(svg+*){width:auto}
 .sales-table .row-actions button.outline{display:flex;gap:5px;padding:6px 9px;height:auto}
 .sales-table .row-actions button.invoice-action{display:flex;gap:5px;padding:6px 9px;width:auto;height:auto}
+.invoice-list-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;flex-wrap:wrap}
+.invoice-list-search{display:flex;align-items:center;gap:8px;border:1px solid #d8e4ed;border-radius:8px;padding:8px 10px;background:#fff;color:#71869a;width:280px;max-width:100%}
+.invoice-list-search:focus-within{border-color:#64a9e9;box-shadow:0 0 0 3px rgba(22,119,255,.08)}
+.invoice-list-search input{border:0;outline:0;min-width:0;width:100%;font:inherit;font-size:13px;background:transparent}
