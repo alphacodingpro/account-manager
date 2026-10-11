@@ -452,7 +452,9 @@ function SettingsView({
   company,
   branches,
   onRefresh,
+  section,
 }: {
+  section: "company" | "branches" | "team";
   company: Company;
   branches: Branch[];
   onRefresh: () => void;
@@ -479,8 +481,8 @@ function SettingsView({
     }
   }
   return (
-    <div className="settings-grid">
-      <article className="panel">
+    <div className={section === "branches" ? "settings-grid" : "accounting-stack"}>
+      {section === "company" && <article className="panel">
         <div className="panel-head">
           <div>
             <h3>Company details</h3>
@@ -509,8 +511,8 @@ function SettingsView({
             <dd>{company.gst_registered ? "Registered" : "Not registered"}</dd>
           </div>
         </dl>
-      </article>
-      <article className="panel">
+      </article>}
+      {section === "branches" && <article className="panel">
         <div className="panel-head">
           <div>
             <h3>Add branch</h3>
@@ -548,8 +550,8 @@ function SettingsView({
           <button className="primary">Add branch</button>
         </form>
         {message && <p className="form-message">{message}</p>}
-      </article>
-      <article className="panel wide">
+      </article>}
+      {section === "branches" && <article className="panel wide">
         <div className="panel-head">
           <div>
             <h3>Branches</h3>
@@ -571,8 +573,8 @@ function SettingsView({
             </div>
           ))}
         </div>
-      </article>
-      <TeamAccessView companyId={company.id} />
+      </article>}
+      {section === "team" && <TeamAccessView companyId={company.id} />}
     </div>
   );
 }
@@ -598,6 +600,8 @@ function Dashboard({
 }) {
   const [menu, setMenu] = useState(false);
   const [view, setView] = useState<ViewName>("Overview");
+  const [settingsExpanded, setSettingsExpanded] = useState(false);
+  const [settingsSection, setSettingsSection] = useState<"company" | "branches" | "team">("company");
   const [payrollExpanded, setPayrollExpanded] = useState(false);
   const [payrollSection, setPayrollSection] = useState<"employees" | "attendance" | "leave" | "runs">("employees");
   const [inventoryExpanded, setInventoryExpanded] = useState(false);
@@ -777,14 +781,15 @@ function Dashboard({
             <div key={name}>
             <button
               className={view === name ? "active" : ""}
-              aria-expanded={name === "Sales" ? salesExpanded : name === "Purchases" ? purchasesExpanded : name === "Banking" ? bankingExpanded : name === "Inventory" ? inventoryExpanded : name === "Payroll" ? payrollExpanded : undefined}
-              aria-controls={name === "Sales" ? "sales-submenu" : name === "Purchases" ? "purchases-submenu" : name === "Banking" ? "banking-submenu" : name === "Inventory" ? "inventory-submenu" : name === "Payroll" ? "payroll-submenu" : undefined}
+              aria-expanded={name === "Sales" ? salesExpanded : name === "Purchases" ? purchasesExpanded : name === "Banking" ? bankingExpanded : name === "Inventory" ? inventoryExpanded : name === "Payroll" ? payrollExpanded : name === "Settings" ? settingsExpanded : undefined}
+              aria-controls={name === "Sales" ? "sales-submenu" : name === "Purchases" ? "purchases-submenu" : name === "Banking" ? "banking-submenu" : name === "Inventory" ? "inventory-submenu" : name === "Payroll" ? "payroll-submenu" : name === "Settings" ? "settings-submenu" : undefined}
               onClick={() => {
                 if (name === "Sales") { setSalesExpanded((open) => !open); return; }
                 if (name === "Purchases") { setPurchasesExpanded((open) => !open); return; }
                 if (name === "Banking") { setBankingExpanded((open) => !open); return; }
                 if (name === "Inventory") { setInventoryExpanded((open) => !open); return; }
                 if (name === "Payroll") { setPayrollExpanded((open) => !open); return; }
+                if (name === "Settings") { setSettingsExpanded((open) => !open); return; }
                 setView(name);
                 setMenu(false);
               }}
@@ -792,6 +797,7 @@ function Dashboard({
             >
               <Icon size={19} />
               {name}
+              {name === "Settings" && <ChevronDown size={15} style={{marginLeft:"auto",transform:settingsExpanded ? "rotate(180deg)" : undefined}}/>}
               {name === "Payroll" && <ChevronDown size={15} style={{marginLeft:"auto",transform:payrollExpanded ? "rotate(180deg)" : undefined}}/>}
               {name === "Inventory" && <ChevronDown size={15} style={{marginLeft:"auto",transform:inventoryExpanded ? "rotate(180deg)" : undefined}}/>}
               {name === "Banking" && <ChevronDown size={15} style={{ marginLeft: "auto", transform: bankingExpanded ? "rotate(180deg)" : undefined }} />}
@@ -812,6 +818,9 @@ function Dashboard({
             </div>}
             {name === "Payroll" && payrollExpanded && <div id="payroll-submenu" className="sales-submenu">
               {([["employees","Employees"],["attendance","Daily attendance"],["leave","Leave management"],["runs","Payroll runs"]] as const).map(([section,label]) => <button key={section} className={view === "Payroll" && payrollSection === section ? "active" : ""} aria-current={view === "Payroll" && payrollSection === section ? "page" : undefined} onClick={() => {setPayrollSection(section);setView("Payroll");setMenu(false);}}>{label}</button>)}
+            </div>}
+            {name === "Settings" && settingsExpanded && <div id="settings-submenu" className="sales-submenu">
+              {([["company","Company details"],["branches","Branches"],["team","Team & permissions"]] as const).map(([section,label]) => <button key={section} className={view === "Settings" && settingsSection === section ? "active" : ""} aria-current={view === "Settings" && settingsSection === section ? "page" : undefined} onClick={() => {setSettingsSection(section);setView("Settings");setMenu(false);}}>{label}</button>)}
             </div>}
             </div>
           ))}
@@ -857,7 +866,7 @@ function Dashboard({
           <div className="page-title">
             <div>
               <p className="eyebrow"><span className="live-dot" /> {company?.name?.toUpperCase()}</p>
-              <h1>{view === "Overview" ? "Financial overview" : view === "Sales" ? ({invoices:"Sales invoices",quotations:"Sales quotations",orders:"Sales orders",returns:"Returns & credit notes"})[salesSection] : view === "Purchases" ? ({bills:"Purchase bills",orders:"Purchase orders",returns:"Returns & supplier debit notes"})[purchasesSection] : view === "Banking" ? ({accounts:"Bank accounts",transactions:"Receipts & payments",reconciliation:"Bank reconciliation"})[bankingSection] : view === "Inventory" ? ({products:"Products & services",stock:"Warehouse stock",adjustments:"Stock adjustments",transfers:"Warehouse transfers",movements:"Stock movements"})[inventorySection] : view === "Payroll" ? ({employees:"Employees",attendance:"Daily attendance",leave:"Leave management",runs:"Payroll runs"})[payrollSection] : view}</h1>
+              <h1>{view === "Overview" ? "Financial overview" : view === "Sales" ? ({invoices:"Sales invoices",quotations:"Sales quotations",orders:"Sales orders",returns:"Returns & credit notes"})[salesSection] : view === "Purchases" ? ({bills:"Purchase bills",orders:"Purchase orders",returns:"Returns & supplier debit notes"})[purchasesSection] : view === "Banking" ? ({accounts:"Bank accounts",transactions:"Receipts & payments",reconciliation:"Bank reconciliation"})[bankingSection] : view === "Inventory" ? ({products:"Products & services",stock:"Warehouse stock",adjustments:"Stock adjustments",transfers:"Warehouse transfers",movements:"Stock movements"})[inventorySection] : view === "Payroll" ? ({employees:"Employees",attendance:"Daily attendance",leave:"Leave management",runs:"Payroll runs"})[payrollSection] : view === "Settings" ? ({company:"Company details",branches:"Branches",team:"Team & permissions"})[settingsSection] : view}</h1>
               <p className="muted">
                 {view === "Overview"
                   ? "Live company data and accounting status."
@@ -898,6 +907,8 @@ function Dashboard({
           {view === "Reports" && <ReportsView companyId={companyId} />}{" "}
           {view === "Settings" && company && (
             <SettingsView
+              key={`${companyId}:${settingsSection}`}
+              section={settingsSection}
               company={company}
               branches={branches}
               onRefresh={loadCompanyData}
