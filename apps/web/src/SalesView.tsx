@@ -191,6 +191,7 @@ export default function SalesView({
       old.map((l, i) => (i === index ? { ...l, [key]: value } : l)),
     );
   }
+  const [addAnother, setAddAnother] = useState(false);
   const [dueMode, setDueMode] = useState("date");
   const [netDays, setNetDays] = useState("30");
   useEffect(() => {
@@ -365,7 +366,7 @@ export default function SalesView({
           </form>
         )}
         {invoiceOpen && (
-          <form className="invoice-form" onSubmit={(e) => { e.preventDefault(); saveInvoice(true); }}>
+          <form className="invoice-form sales-entry-form" onSubmit={(e) => { e.preventDefault(); saveInvoice(true, addAnother); }}>
             <div className="invoice-meta">
               <label>
                 Customer
@@ -526,7 +527,8 @@ export default function SalesView({
                 Total <b>{pkr.format(totals.total)}</b>
               </span>
             </div>
-            <div className="form-actions">
+            <div className="form-actions sales-entry-actions">
+              <label className="entry-repeat"><input type="checkbox" checked={addAnother} onChange={e => setAddAnother(e.target.checked)} />Add another after saving</label>
               <button
                 type="button"
                 className="outline"
@@ -534,9 +536,7 @@ export default function SalesView({
               >
                 Cancel
               </button>
-              <button type="button" className="outline" disabled={busy || totals.total <= 0} onClick={() => saveInvoice(false)}>Save draft</button>
-              <button type="button" className="outline" disabled={busy || totals.total <= 0} onClick={() => saveInvoice(false, true)}>Save draft & add another</button>
-              <button type="button" className="outline" disabled={busy || totals.total <= 0} onClick={() => saveInvoice(true, true)}>Post & add another</button>
+              <button type="button" className="outline" disabled={busy || totals.total <= 0} onClick={() => saveInvoice(false, addAnother)}>Save draft</button>
               <button className="primary" disabled={busy || totals.total <= 0}>
                 {busy ? "Saving..." : editingInvoiceId ? "Update & post" : "Post invoice"}
               </button>
