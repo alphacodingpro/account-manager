@@ -108,6 +108,16 @@ type ViewName =
   | "Reports"
   | "Settings"
   | "History";
+const plannedModules: Partial<Record<ViewName, string[]>> = {
+  Sales: ["Customers", "Late Payment Fees", "Delivery Notes", "Billable Time", "Withholding Tax Receipts"],
+  Purchases: ["Suppliers", "Purchase Quotes", "Goods Receipts"],
+  Banking: ["Receipts", "Payments", "Inter Account Transfers", "Expense Claims"],
+  Inventory: ["Inventory Write-offs", "Production Orders"],
+  Payroll: ["Payslips"],
+  Settings: ["Customize"],
+  Accounting: ["Projects", "Investments", "Fixed Assets", "Depreciation Entries", "Intangible Assets", "Amortization Entries", "Capital Accounts", "Special Accounts", "Folders"],
+};
+
 type AccessRole = "owner" | "admin" | "accountant" | "sales" | "purchases" | "inventory" | "payroll" | "viewer" | "custom";
 const money = new Intl.NumberFormat("en-PK", {
   style: "currency",
@@ -602,6 +612,7 @@ function Dashboard({
   demo?: boolean;
 }) {
   const [menu, setMenu] = useState(false);
+  const [plannedModule, setPlannedModule] = useState("");
   const [view, setView] = useState<ViewName>("Overview");
   const [settingsExpanded, setSettingsExpanded] = useState(false);
   const [settingsSection, setSettingsSection] = useState<"company" | "branches" | "team">("company");
@@ -626,6 +637,7 @@ function Dashboard({
   const [loading, setLoading] = useState(!demo);
   const [error, setError] = useState("");
   const [accessRole, setAccessRole] = useState<AccessRole | null>(demo ? "owner" : null);
+  useEffect(() => { setPlannedModule(""); }, [companyId, accessRole]);
   const company = companies.find((c) => c.id === companyId);
   async function loadCompanies(preferred?: string) {
     if (demo) {
@@ -787,6 +799,7 @@ function Dashboard({
               aria-expanded={name === "Sales" ? salesExpanded : name === "Purchases" ? purchasesExpanded : name === "Banking" ? bankingExpanded : name === "Inventory" ? inventoryExpanded : name === "Payroll" ? payrollExpanded : name === "Settings" ? settingsExpanded : undefined}
               aria-controls={name === "Sales" ? "sales-submenu" : name === "Purchases" ? "purchases-submenu" : name === "Banking" ? "banking-submenu" : name === "Inventory" ? "inventory-submenu" : name === "Payroll" ? "payroll-submenu" : name === "Settings" ? "settings-submenu" : undefined}
               onClick={() => {
+                setPlannedModule("");
                 if (name === "Sales") { setSalesExpanded((open) => !open); return; }
                 if (name === "Purchases") { setPurchasesExpanded((open) => !open); return; }
                 if (name === "Banking") { setBankingExpanded((open) => !open); return; }
@@ -808,22 +821,26 @@ function Dashboard({
               {name === "Purchases" && <ChevronDown size={15} style={{ marginLeft: "auto", transform: purchasesExpanded ? "rotate(180deg)" : undefined }} />}
             </button>
             {name === "Sales" && salesExpanded && <div id="sales-submenu" className="sales-submenu">
-              {([["invoices", "Sales invoices"], ["quotations", "Sales quotations"], ["orders", "Sales orders"], ["returns", "Returns & credit notes"], ["history", "Sales history"]] as const).map(([section, label]) => <button key={section} className={view === "Sales" && salesSection === section ? "active" : ""} aria-current={view === "Sales" && salesSection === section ? "page" : undefined} onClick={() => { setSalesSection(section); setView("Sales"); setMenu(false); }}>{label}</button>)}
+              {([["invoices", "Sales invoices"], ["quotations", "Sales quotations"], ["orders", "Sales orders"], ["returns", "Returns & credit notes"], ["history", "Sales history"]] as const).map(([section, label]) => <button key={section} className={view === "Sales" && salesSection === section ? "active" : ""} aria-current={view === "Sales" && salesSection === section ? "page" : undefined} onClick={() => { setPlannedModule(""); setSalesSection(section); setView("Sales"); setMenu(false); }}>{label}</button>)}
             </div>}
             {name === "Purchases" && purchasesExpanded && <div id="purchases-submenu" className="sales-submenu">
-              {([["bills", "Purchase bills"], ["orders", "Purchase orders"], ["returns", "Returns & supplier debit notes"]] as const).map(([section, label]) => <button key={section} className={view === "Purchases" && purchasesSection === section ? "active" : ""} aria-current={view === "Purchases" && purchasesSection === section ? "page" : undefined} onClick={() => { setPurchasesSection(section); setView("Purchases"); setMenu(false); }}>{label}</button>)}
+              {([["bills", "Purchase bills"], ["orders", "Purchase orders"], ["returns", "Returns & supplier debit notes"]] as const).map(([section, label]) => <button key={section} className={view === "Purchases" && purchasesSection === section ? "active" : ""} aria-current={view === "Purchases" && purchasesSection === section ? "page" : undefined} onClick={() => { setPlannedModule(""); setPurchasesSection(section); setView("Purchases"); setMenu(false); }}>{label}</button>)}
             </div>}
             {name === "Banking" && bankingExpanded && <div id="banking-submenu" className="sales-submenu">
-              {([["accounts", "Bank accounts"], ["transactions", "Receipts & payments"], ["reconciliation", "Bank reconciliation"]] as const).map(([section, label]) => <button key={section} className={view === "Banking" && bankingSection === section ? "active" : ""} aria-current={view === "Banking" && bankingSection === section ? "page" : undefined} onClick={() => { setBankingSection(section); setView("Banking"); setMenu(false); }}>{label}</button>)}
+              {([["accounts", "Bank accounts"], ["transactions", "Receipts & payments"], ["reconciliation", "Bank reconciliation"]] as const).map(([section, label]) => <button key={section} className={view === "Banking" && bankingSection === section ? "active" : ""} aria-current={view === "Banking" && bankingSection === section ? "page" : undefined} onClick={() => { setPlannedModule(""); setBankingSection(section); setView("Banking"); setMenu(false); }}>{label}</button>)}
             </div>}
             {name === "Inventory" && inventoryExpanded && <div id="inventory-submenu" className="sales-submenu">
-              {([["products","Products & services"],["stock","Warehouse stock"],["adjustments","Stock adjustments"],["transfers","Warehouse transfers"],["movements","Stock movements"]] as const).map(([section,label]) => <button key={section} className={view === "Inventory" && inventorySection === section ? "active" : ""} aria-current={view === "Inventory" && inventorySection === section ? "page" : undefined} onClick={() => {setInventorySection(section);setView("Inventory");setMenu(false);}}>{label}</button>)}
+              {([["products","Products & services"],["stock","Warehouse stock"],["adjustments","Stock adjustments"],["transfers","Warehouse transfers"],["movements","Stock movements"]] as const).map(([section,label]) => <button key={section} className={view === "Inventory" && inventorySection === section ? "active" : ""} aria-current={view === "Inventory" && inventorySection === section ? "page" : undefined} onClick={() => {setPlannedModule("");setInventorySection(section);setView("Inventory");setMenu(false);}}>{label}</button>)}
             </div>}
             {name === "Payroll" && payrollExpanded && <div id="payroll-submenu" className="sales-submenu">
-              {([["employees","Employees"],["attendance","Daily attendance"],["leave","Leave management"],["runs","Payroll runs"]] as const).map(([section,label]) => <button key={section} className={view === "Payroll" && payrollSection === section ? "active" : ""} aria-current={view === "Payroll" && payrollSection === section ? "page" : undefined} onClick={() => {setPayrollSection(section);setView("Payroll");setMenu(false);}}>{label}</button>)}
+              {([["employees","Employees"],["attendance","Daily attendance"],["leave","Leave management"],["runs","Payroll runs"]] as const).map(([section,label]) => <button key={section} className={view === "Payroll" && payrollSection === section ? "active" : ""} aria-current={view === "Payroll" && payrollSection === section ? "page" : undefined} onClick={() => {setPlannedModule("");setPayrollSection(section);setView("Payroll");setMenu(false);}}>{label}</button>)}
             </div>}
             {name === "Settings" && settingsExpanded && <div id="settings-submenu" className="sales-submenu">
-              {([["company","Company details"],["branches","Branches"],["team","Team & permissions"]] as const).map(([section,label]) => <button key={section} className={view === "Settings" && settingsSection === section ? "active" : ""} aria-current={view === "Settings" && settingsSection === section ? "page" : undefined} onClick={() => {setSettingsSection(section);setView("Settings");setMenu(false);}}>{label}</button>)}
+              {([["company","Company details"],["branches","Branches"],["team","Team & permissions"]] as const).map(([section,label]) => <button key={section} className={view === "Settings" && settingsSection === section ? "active" : ""} aria-current={view === "Settings" && settingsSection === section ? "page" : undefined} onClick={() => {setPlannedModule("");setSettingsSection(section);setView("Settings");setMenu(false);}}>{label}</button>)}
+            </div>}
+            {name === "Accounting" && view === "Accounting" && <div className="sales-submenu"><button className={!plannedModule ? "active" : ""} onClick={() => {setPlannedModule("");setMenu(false);}}>Journal Entries & Chart of Accounts</button></div>}
+            {plannedModules[name] && ((name === "Sales" && salesExpanded) || (name === "Purchases" && purchasesExpanded) || (name === "Banking" && bankingExpanded) || (name === "Inventory" && inventoryExpanded) || (name === "Payroll" && payrollExpanded) || (name === "Settings" && settingsExpanded) || (name === "Accounting" && view === "Accounting")) && <div className="sales-submenu planned-submenu">
+              {plannedModules[name]?.map(label => <button key={label} className={view === name && plannedModule === label ? "active" : ""} aria-current={view === name && plannedModule === label ? "page" : undefined} onClick={() => {setView(name);setPlannedModule(label);setMenu(false);}}><span>{label}</span><small>Planned</small></button>)}
             </div>}
             </div>
           ))}
@@ -869,9 +886,9 @@ function Dashboard({
           <div className="page-title">
             <div>
               <p className="eyebrow"><span className="live-dot" /> {company?.name?.toUpperCase()}</p>
-              <h1>{view === "Overview" ? "Financial overview" : view === "Sales" ? ({invoices:"Sales invoices",quotations:"Sales quotations",orders:"Sales orders",returns:"Returns & credit notes",history:"Sales history"})[salesSection] : view === "Purchases" ? ({bills:"Purchase bills",orders:"Purchase orders",returns:"Returns & supplier debit notes"})[purchasesSection] : view === "Banking" ? ({accounts:"Bank accounts",transactions:"Receipts & payments",reconciliation:"Bank reconciliation"})[bankingSection] : view === "Inventory" ? ({products:"Products & services",stock:"Warehouse stock",adjustments:"Stock adjustments",transfers:"Warehouse transfers",movements:"Stock movements"})[inventorySection] : view === "Payroll" ? ({employees:"Employees",attendance:"Daily attendance",leave:"Leave management",runs:"Payroll runs"})[payrollSection] : view === "Settings" ? ({company:"Company details",branches:"Branches",team:"Team & permissions"})[settingsSection] : view}</h1>
+              <h1>{plannedModule || (view === "Overview" ? "Financial overview" : view === "Sales" ? ({invoices:"Sales invoices",quotations:"Sales quotations",orders:"Sales orders",returns:"Returns & credit notes",history:"Sales history"})[salesSection] : view === "Purchases" ? ({bills:"Purchase bills",orders:"Purchase orders",returns:"Returns & supplier debit notes"})[purchasesSection] : view === "Banking" ? ({accounts:"Bank accounts",transactions:"Receipts & payments",reconciliation:"Bank reconciliation"})[bankingSection] : view === "Inventory" ? ({products:"Products & services",stock:"Warehouse stock",adjustments:"Stock adjustments",transfers:"Warehouse transfers",movements:"Stock movements"})[inventorySection] : view === "Payroll" ? ({employees:"Employees",attendance:"Daily attendance",leave:"Leave management",runs:"Payroll runs"})[payrollSection] : view === "Settings" ? ({company:"Company details",branches:"Branches",team:"Team & permissions"})[settingsSection] : view)}</h1>
               <p className="muted">
-                {view === "Overview"
+                          {view === "Overview"
                   ? "Live company data and accounting status."
                   : "Manage " + view.toLowerCase() + " for the active company."}
               </p>
@@ -881,6 +898,8 @@ function Dashboard({
             </select>
           </div>
           {error && <p className="alert">{error}</p>}
+                {plannedModule && <article className="panel planned-module-panel"><span className="status-badge">Coming soon</span><h2>{plannedModule}</h2><p>This module is planned. Entry forms, accounting rules and reports are not available yet.</p><button className="outline" onClick={() => setPlannedModule("")}>Back to {view}</button></article>}
+          {!plannedModule && <>
           {view === "Overview" && (
             <Overview
               branches={branches}
@@ -930,6 +949,7 @@ function Dashboard({
             "Settings",
             "History",
           ].includes(view) && <Placeholder title={view} />}
+          </>}
         </section>
       </main>
     </div>
