@@ -598,6 +598,8 @@ function Dashboard({
 }) {
   const [menu, setMenu] = useState(false);
   const [view, setView] = useState<ViewName>("Overview");
+  const [inventoryExpanded, setInventoryExpanded] = useState(false);
+  const [inventorySection, setInventorySection] = useState<"products" | "stock" | "adjustments" | "transfers" | "movements">("products");
   const [bankingExpanded, setBankingExpanded] = useState(false);
   const [bankingSection, setBankingSection] = useState<"accounts" | "transactions" | "reconciliation">("transactions");
   const [salesExpanded, setSalesExpanded] = useState(false);
@@ -773,12 +775,13 @@ function Dashboard({
             <div key={name}>
             <button
               className={view === name ? "active" : ""}
-              aria-expanded={name === "Sales" ? salesExpanded : name === "Purchases" ? purchasesExpanded : name === "Banking" ? bankingExpanded : undefined}
-              aria-controls={name === "Sales" ? "sales-submenu" : name === "Purchases" ? "purchases-submenu" : name === "Banking" ? "banking-submenu" : undefined}
+              aria-expanded={name === "Sales" ? salesExpanded : name === "Purchases" ? purchasesExpanded : name === "Banking" ? bankingExpanded : name === "Inventory" ? inventoryExpanded : undefined}
+              aria-controls={name === "Sales" ? "sales-submenu" : name === "Purchases" ? "purchases-submenu" : name === "Banking" ? "banking-submenu" : name === "Inventory" ? "inventory-submenu" : undefined}
               onClick={() => {
                 if (name === "Sales") { setSalesExpanded((open) => !open); return; }
                 if (name === "Purchases") { setPurchasesExpanded((open) => !open); return; }
                 if (name === "Banking") { setBankingExpanded((open) => !open); return; }
+                if (name === "Inventory") { setInventoryExpanded((open) => !open); return; }
                 setView(name);
                 setMenu(false);
               }}
@@ -786,6 +789,7 @@ function Dashboard({
             >
               <Icon size={19} />
               {name}
+              {name === "Inventory" && <ChevronDown size={15} style={{marginLeft:"auto",transform:inventoryExpanded ? "rotate(180deg)" : undefined}}/>}
               {name === "Banking" && <ChevronDown size={15} style={{ marginLeft: "auto", transform: bankingExpanded ? "rotate(180deg)" : undefined }} />}
               {name === "Sales" && <ChevronDown size={15} style={{ marginLeft: "auto", transform: salesExpanded ? "rotate(180deg)" : undefined }} />}
               {name === "Purchases" && <ChevronDown size={15} style={{ marginLeft: "auto", transform: purchasesExpanded ? "rotate(180deg)" : undefined }} />}
@@ -798,6 +802,9 @@ function Dashboard({
             </div>}
             {name === "Banking" && bankingExpanded && <div id="banking-submenu" className="sales-submenu">
               {([["accounts", "Bank accounts"], ["transactions", "Receipts & payments"], ["reconciliation", "Bank reconciliation"]] as const).map(([section, label]) => <button key={section} className={view === "Banking" && bankingSection === section ? "active" : ""} aria-current={view === "Banking" && bankingSection === section ? "page" : undefined} onClick={() => { setBankingSection(section); setView("Banking"); setMenu(false); }}>{label}</button>)}
+            </div>}
+            {name === "Inventory" && inventoryExpanded && <div id="inventory-submenu" className="sales-submenu">
+              {([["products","Products & services"],["stock","Warehouse stock"],["adjustments","Stock adjustments"],["transfers","Warehouse transfers"],["movements","Stock movements"]] as const).map(([section,label]) => <button key={section} className={view === "Inventory" && inventorySection === section ? "active" : ""} aria-current={view === "Inventory" && inventorySection === section ? "page" : undefined} onClick={() => {setInventorySection(section);setView("Inventory");setMenu(false);}}>{label}</button>)}
             </div>}
             </div>
           ))}
@@ -843,7 +850,7 @@ function Dashboard({
           <div className="page-title">
             <div>
               <p className="eyebrow"><span className="live-dot" /> {company?.name?.toUpperCase()}</p>
-              <h1>{view === "Overview" ? "Financial overview" : view === "Sales" ? ({invoices:"Sales invoices",quotations:"Sales quotations",orders:"Sales orders",returns:"Returns & credit notes"})[salesSection] : view === "Purchases" ? ({bills:"Purchase bills",orders:"Purchase orders",returns:"Returns & supplier debit notes"})[purchasesSection] : view === "Banking" ? ({accounts:"Bank accounts",transactions:"Receipts & payments",reconciliation:"Bank reconciliation"})[bankingSection] : view}</h1>
+              <h1>{view === "Overview" ? "Financial overview" : view === "Sales" ? ({invoices:"Sales invoices",quotations:"Sales quotations",orders:"Sales orders",returns:"Returns & credit notes"})[salesSection] : view === "Purchases" ? ({bills:"Purchase bills",orders:"Purchase orders",returns:"Returns & supplier debit notes"})[purchasesSection] : view === "Banking" ? ({accounts:"Bank accounts",transactions:"Receipts & payments",reconciliation:"Bank reconciliation"})[bankingSection] : view === "Inventory" ? ({products:"Products & services",stock:"Warehouse stock",adjustments:"Stock adjustments",transfers:"Warehouse transfers",movements:"Stock movements"})[inventorySection] : view}</h1>
               <p className="muted">
                 {view === "Overview"
                   ? "Live company data and accounting status."
@@ -879,7 +886,7 @@ function Dashboard({
           {view === "Banking" && (
             <BankingView key={`${companyId}:${bankingSection}`} companyId={companyId} branches={branches} accounts={accounts} section={bankingSection} />
           )}{" "}
-          {view === "Inventory" && <InventoryView companyId={companyId} />}{" "}
+          {view === "Inventory" && <InventoryView key={`${companyId}:${inventorySection}`} companyId={companyId} section={inventorySection} />}{" "}
           {view === "Payroll" && <PayrollView companyId={companyId} branches={branches} />}{" "}
           {view === "Reports" && <ReportsView companyId={companyId} />}{" "}
           {view === "Settings" && company && (

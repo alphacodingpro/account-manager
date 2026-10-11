@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowRightLeft, Package, Pencil, Plus, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { supabase } from "./lib/supabase";
+import "./InventoryView.css";
 type Product = {
   id: string;
   sku: string;
@@ -22,7 +23,7 @@ const pkr = new Intl.NumberFormat("en-PK", {
   style: "currency",
   currency: "PKR",
 });
-export default function InventoryView({ companyId }: { companyId: string }) {
+export default function InventoryView({ companyId, section = "products" }: { companyId: string; section?: "products" | "stock" | "adjustments" | "transfers" | "movements" }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
@@ -124,8 +125,9 @@ export default function InventoryView({ companyId }: { companyId: string }) {
     setStockBusy(false);
   }
   return (
-    <div className="accounting-stack">
-      <article className="panel data-panel">
+    <div className="accounting-stack inventory-view">
+      {message && <p role="status" className={message.includes("success") ? "notice" : "alert"}>{message}</p>}
+      {section === "products" && <article className="panel data-panel">
         <div className="panel-head">
           <div>
             <h3>Products and services</h3>
@@ -133,16 +135,11 @@ export default function InventoryView({ companyId }: { companyId: string }) {
           </div>
           <button
             className="primary small-button"
-            onClick={() => { setOpen((v) => !v); setEditingId(""); }}
+            onClick={() => { setOpen((v) => !v); setEditingId(""); setForm({sku:"",name:"",unit:"each",sale_price:"",purchase_price:"",gst_rate:"0",reorder_level:"0",is_service:false}); }}
           >
             {open ? <X size={16} /> : <Plus size={16} />} {editingId ? "Cancel edit" : "New item"}
           </button>
         </div>
-        {message && (
-          <p className={message.includes("success") ? "notice" : "alert"}>
-            {message}
-          </p>
-        )}
         {open && (
           <form className="product-form" onSubmit={save}>
             <label>
@@ -273,25 +270,25 @@ export default function InventoryView({ companyId }: { companyId: string }) {
             ))}
           </div>
         )}
-      </article>
-      <article className="panel data-panel">
+      </article>}
+      {section === "stock" && <article className="panel data-panel">
         <div className="panel-head"><div><h3>Warehouse stock ledger</h3><p>Live quantity and weighted-average valuation</p></div><Package /></div>
-        {stockBalances.length === 0 ? <div className="mini-empty"><Package/><p>No warehouse stock movements yet.</p></div> : <div className="inventory-table">
+        {stockBalances.length === 0 ? <div className="mini-empty"><Package/><p>No warehouse stock movements yet.</p></div> : <div className="inventory-table inventory-stock">
           <div className="inventory-row data-heading"><span>Warehouse</span><span>SKU</span><span>Item</span><span>Quantity</span><span>Average cost</span><span>Stock value</span><span></span></div>
           {stockBalances.map((row) => <div className="inventory-row" key={`${row.warehouse_id}-${row.product_id}`}><span><b>{row.warehouse_name}</b></span><span className="code">{row.sku}</span><span>{row.product_name}</span><span>{row.quantity}</span><span>{pkr.format(row.average_cost)}</span><span><b>{pkr.format(row.stock_value)}</b></span><span></span></div>)}
         </div>}
-      </article>
-      <article className="panel data-panel">
-        <div className="panel-head"><div><h3>Stock operations</h3><p>Append-only adjustments and warehouse transfers</p></div><SlidersHorizontal /></div>
-        <form className="product-form" onSubmit={saveAdjustment}>
+      </article>}
+      {["adjustments", "transfers", "movements"].includes(section) && <article className="panel data-panel">
+        <div className="panel-head"><div><h3>{section === "adjustments" ? "Stock adjustments" : section === "transfers" ? "Warehouse transfers" : "Stock movements"}</h3><p>{section === "movements" ? "Recent inventory movement history" : "Record inventory changes with an audit reference"}</p></div><SlidersHorizontal /></div>
+        {section === "adjustments" && <form className="product-form" onSubmit={saveAdjustment}>
           <label>Product<select value={adjustment.productId} onChange={(e) => setAdjustment({ ...adjustment, productId: e.target.value })} required><option value="">Select product</option>{products.filter((p) => !p.is_service && p.active).map((p) => <option key={p.id} value={p.id}>{p.sku} · {p.name} ({p.quantity_on_hand})</option>)}</select></label>
           <label>Warehouse<select value={adjustment.warehouseId} onChange={(e) => setAdjustment({ ...adjustment, warehouseId: e.target.value })} required><option value="">Select warehouse</option>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
           <label>Direction<select value={adjustment.direction} onChange={(e) => setAdjustment({ ...adjustment, direction: e.target.value })}><option value="increase">Stock in</option><option value="decrease">Stock out</option></select></label>
           <label>Quantity<input type="number" min="0.001" step="0.001" value={adjustment.quantity} onChange={(e) => setAdjustment({ ...adjustment, quantity: e.target.value })} required/></label>
           <label>Reference<input value={adjustment.reference} onChange={(e) => setAdjustment({ ...adjustment, reference: e.target.value })} placeholder="Count sheet / reason" required/></label>
           <button className="primary" disabled={stockBusy}><SlidersHorizontal size={16}/>{stockBusy ? "Recording…" : "Record adjustment"}</button>
-        </form>
-        {warehouses.length > 1 && <form className="product-form" onSubmit={saveTransfer}>
+        </form>}
+        {section === "transfers" && warehouses.length > 1 && <form className="product-form" onSubmit={saveTransfer}>
           <label>Product<select value={transfer.productId} onChange={(e) => setTransfer({ ...transfer, productId: e.target.value })} required><option value="">Select product</option>{products.filter((p) => !p.is_service && p.active).map((p) => <option key={p.id} value={p.id}>{p.sku} · {p.name}</option>)}</select></label>
           <label>From<select value={transfer.sourceId} onChange={(e) => setTransfer({ ...transfer, sourceId: e.target.value })} required><option value="">Source warehouse</option>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
           <label>To<select value={transfer.destinationId} onChange={(e) => setTransfer({ ...transfer, destinationId: e.target.value })} required><option value="">Destination warehouse</option>{warehouses.filter((w) => w.id !== transfer.sourceId).map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
@@ -299,11 +296,12 @@ export default function InventoryView({ companyId }: { companyId: string }) {
           <label>Reference<input value={transfer.reference} onChange={(e) => setTransfer({ ...transfer, reference: e.target.value })} placeholder="Transfer note number" required/></label>
           <button className="primary" disabled={stockBusy}><ArrowRightLeft size={16}/>{stockBusy ? "Transferring…" : "Transfer stock"}</button>
         </form>}
-        <div className="inventory-table">
+        {section === "transfers" && warehouses.length < 2 && <div className="mini-empty"><ArrowRightLeft/><p>At least two active warehouses are required for a stock transfer.</p></div>}
+        {section === "movements" && <div className="inventory-table inventory-movements">
           <div className="inventory-row data-heading"><span>Date</span><span>Item</span><span>Warehouse</span><span>Movement</span><span>Quantity</span><span>Reference</span><span></span></div>
           {movements.map((movement) => <div className="inventory-row" key={movement.id}><span>{new Date(movement.movement_date).toLocaleDateString("en-PK")}</span><span><b>{movement.products?.name ?? "Product"}</b></span><span>{movement.warehouses?.name ?? "Warehouse"}</span><span>{movement.movement_type.replaceAll("_", " ")}</span><span>{movement.quantity}</span><span>{movement.reference ?? "—"}</span><span></span></div>)}
-        </div>
-      </article>
+        </div>}
+      </article>}
     </div>
   );
 }

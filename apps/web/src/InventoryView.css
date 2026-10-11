@@ -1,0 +1,11 @@
+.inventory-view{min-width:0}
+.inventory-view .inventory-row{grid-template-columns:110px minmax(200px,2fr) 90px 130px 130px 90px 88px;min-width:920px;align-items:center}
+.inventory-view .inventory-stock .inventory-row{grid-template-columns:160px 110px minmax(200px,2fr) 100px 130px 140px 20px}
+.inventory-view .inventory-movements .inventory-row{grid-template-columns:110px minmax(200px,2fr) 160px 130px 90px 160px 20px}
+.inventory-view .inventory-row>span{min-width:0;overflow-wrap:anywhere}
+.inventory-view .product-form{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.inventory-view .product-form label{min-width:0}
+.inventory-view .product-form select{width:100%;min-width:0;padding:11px;border:1px solid #d7e3ec;border-radius:8px;background:#fff;color:#253e50;font:inherit}
+.inventory-view .product-form button{display:flex;align-items:center;justify-content:center;gap:7px;min-height:40px}
+.inventory-view .product-form select:focus{outline:2px solid #64a9e9;outline-offset:1px}
+@media(max-width:560px){.inventory-view .panel-head{align-items:flex-start;flex-wrap:wrap;gap:12px}.inventory-view .product-form{grid-template-columns:1fr}.inventory-view .panel-head>.primary{width:100%}}
