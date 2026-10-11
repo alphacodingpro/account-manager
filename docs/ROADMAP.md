@@ -67,7 +67,7 @@
 ### Planned sidebar module implementation queue
 - [x] Customers and Suppliers: company-scoped paginated directory, search, create/edit, NTN/STRN and safe deactivation/reactivation
 - [x] Dedicated Receipts and Payments pages with direction-specific entry and complete searchable lists
-- [ ] Inter Account Transfers
+- [x] Inter Account Transfers: atomic cash/bank journal posting with company/account validation; existing Accounting reversal path
 - [ ] Expense Claims and Billable Time
 - [ ] Delivery Notes and Goods Receipts
 - [ ] Purchase Quotes
