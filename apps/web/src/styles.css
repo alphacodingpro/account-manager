@@ -31,3 +31,8 @@
 
 :root .sales-submenu{margin:4px 0 6px 22px;padding-left:10px;border-left:1px solid rgba(145,173,194,.25);display:grid;gap:3px}
 :root .sales-submenu button{font-size:12px;padding:9px 10px}
+/* Keep expanded navigation accessible on short screens and mobile drawers. */
+.app-shell>aside{height:100vh;height:100dvh;overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;scrollbar-width:thin;scrollbar-color:#52738d transparent;-webkit-overflow-scrolling:touch}
+.app-shell>aside>*{flex-shrink:0}
+.app-shell>aside::-webkit-scrollbar{width:6px}
+.app-shell>aside::-webkit-scrollbar-thumb{background:#52738d;border-radius:6px}
