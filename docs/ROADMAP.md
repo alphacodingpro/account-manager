@@ -75,7 +75,7 @@
 - [ ] Delivery Notes and Goods Receipts
 - [ ] Purchase Quotes
 - [ ] Inventory Write-offs and Production Orders
-- [ ] Payslips directory
+- [x] Payslips directory: posted payroll only, employee/period search, full earnings/deductions and print/PDF
 - [ ] Projects
 - [ ] Fixed Assets and Depreciation Entries
 - [ ] Intangible Assets and Amortization Entries
