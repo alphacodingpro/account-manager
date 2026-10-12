@@ -1,3 +1,4 @@
+import { ModuleRecordsView } from "./ModuleRecordsView";
 import { LatePaymentFeesView } from "./LatePaymentFeesView";
 import { PayslipsView } from "./PayslipsView";
 import { ExpenseClaimsView } from "./ExpenseClaimsView";
@@ -908,7 +909,7 @@ function Dashboard({
                 {plannedModule === "Expense Claims" && <ExpenseClaimsView key={companyId} companyId={companyId} accounts={accounts}/>}
                 {plannedModule === "Payslips" && <PayslipsView key={companyId} companyId={companyId} companyName={company?.name||"Company"}/>}
                 {plannedModule === "Late Payment Fees" && <LatePaymentFeesView key={companyId} companyId={companyId}/>}
-                {plannedModule && !["Customers","Suppliers","Inter Account Transfers","Expense Claims","Payslips","Late Payment Fees"].includes(plannedModule) && <article className="panel planned-module-panel"><span className="status-badge">Coming soon</span><h2>{plannedModule}</h2><p>This module is planned. Entry forms, accounting rules and reports are not available yet.</p><button className="outline" onClick={() => setPlannedModule("")}>Back to {view}</button></article>}
+                {plannedModule && !["Customers","Suppliers","Inter Account Transfers","Expense Claims","Payslips","Late Payment Fees"].includes(plannedModule) && <ModuleRecordsView key={`${companyId}:${plannedModule}`} companyId={companyId} module={plannedModule} demo={demo}/>}
           {!plannedModule && <>
           {view === "Overview" && (
             <Overview
@@ -997,3 +998,4 @@ export default function App() {
     <Login onDemo={() => setDemo(true)} />
   );
 }
+

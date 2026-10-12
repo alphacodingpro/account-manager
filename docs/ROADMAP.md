@@ -84,3 +84,7 @@
 - [ ] Withholding Tax Receipts
 - [ ] Folders and Customize
 Every transactional module requires company/role enforcement, draft review, balanced posting, audit-safe cancellation and relevant validation before its Planned badge is removed.
+
+
+### Remaining sidebar page drafts
+All 17 remaining sidebar pages now have company-scoped draft registers with tailored fields, search, view/edit and deletion. These pages deliberately retain their Planned navigation badges: saving a draft does not post journals, change stock, issue certificates, apply customization, or complete a production/asset workflow. Their transactional work remains open in the queue above. Migration 0033 enforces each module's permission in RLS and audits mutations. Late Payment Fees continues to use migration 0032 and the existing sales invoice posting flow.
