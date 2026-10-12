@@ -80,6 +80,7 @@
 - [ ] Fixed Assets and Depreciation Entries
 - [ ] Intangible Assets and Amortization Entries
 - [ ] Investments, Capital Accounts and Special Accounts
-- [ ] Withholding Tax Receipts and Late Payment Fees
+- [x] Late Payment Fees: overdue balance validation, atomic separate fee invoice, explicit GST, duplicate-date protection; normal sales posting/voiding and receipt allocation
+- [ ] Withholding Tax Receipts
 - [ ] Folders and Customize
 Every transactional module requires company/role enforcement, draft review, balanced posting, audit-safe cancellation and relevant validation before its Planned badge is removed.
