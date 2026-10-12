@@ -62,3 +62,7 @@
 .planned-submenu button{display:flex;align-items:center;justify-content:space-between;gap:8px}.planned-submenu button span{text-align:left}.planned-submenu small{font-size:9px;font-weight:500;color:#9eb6cc;border:1px solid #31526f;border-radius:4px;padding:2px 4px}.planned-module-panel{padding:24px}.planned-module-panel h2{margin:14px 0 8px}.planned-module-panel p{color:#71869a;line-height:1.6}.planned-module-panel button{font-size:12px;padding:8px 12px}
 
 .contacts-table{width:100%;border-collapse:collapse;font-size:12px;min-width:760px}.contacts-table th{text-align:left;font-size:10px;color:#71869a;background:#f7f9fc}.contacts-table th,.contacts-table td{padding:12px;border-bottom:1px solid #e2eaf1;vertical-align:top}.contacts-table td{line-height:1.6;overflow-wrap:anywhere}.contacts-table button{font-size:11px;padding:5px 8px;min-height:30px}
+
+
+/* Shared draft register layout */
+.table-wrap{overflow-x:auto;margin-top:16px}.table-wrap table{width:100%;min-width:650px;border-collapse:collapse;font-size:12px}.table-wrap th{text-align:left;color:#71869a;background:#f7f9fc;font-size:11px}.table-wrap th,.table-wrap td{padding:12px;border-bottom:1px solid #e5edf4}.table-wrap td:last-child{display:flex;gap:8px}.bank-form textarea{width:100%;min-height:88px;border:1px solid #d5e0e8;background:#fff;border-radius:9px;padding:10px;color:#253e50;resize:vertical}.data-panel>input{margin-top:16px;width:min(100%,360px);border:1px solid #d5e0e8;border-radius:9px;padding:10px}
