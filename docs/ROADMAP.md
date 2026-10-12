@@ -68,7 +68,9 @@
 - [x] Customers and Suppliers: company-scoped paginated directory, search, create/edit, NTN/STRN and safe deactivation/reactivation
 - [x] Dedicated Receipts and Payments pages with direction-specific entry and complete searchable lists
 - [x] Inter Account Transfers: atomic cash/bank journal posting with company/account validation; existing Accounting reversal path
-- [ ] Expense Claims and Billable Time
+- [x] Expense Claims core: journal-backed capture, atomic draft edits/posting, full view, search, deletion and reversal
+- [ ] Expense Claims: reimbursement settlement, receipt attachments and dedicated approval workflow
+- [ ] Billable Time
 - [ ] Delivery Notes and Goods Receipts
 - [ ] Purchase Quotes
 - [ ] Inventory Write-offs and Production Orders
