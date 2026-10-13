@@ -5,8 +5,10 @@ create function has_company_permission(uuid,text) returns boolean language sql a
 create function write_audit_log() returns trigger language plpgsql as $$begin return coalesce(new,old);end$$;
 create table companies(id uuid primary key);create table branches(id uuid primary key,company_id uuid,active boolean);create table contacts(id uuid primary key,company_id uuid,active boolean,kind text);create table products(id uuid primary key,company_id uuid,active boolean,is_service boolean);create table warehouses(id uuid primary key,company_id uuid,branch_id uuid,active boolean,created_at timestamptz default now());
 create table purchase_orders(id uuid primary key default gen_random_uuid(),company_id uuid,branch_id uuid,warehouse_id uuid,supplier_id uuid,order_date date,supplier_reference text,notes text,created_by uuid);
-create table purchase_order_lines(purchase_order_id uuid,product_id uuid,description text,quantity numeric,unit_price numeric,gst_rate numeric);`);
+create table purchase_order_lines(purchase_order_id uuid,product_id uuid,expense_account_id uuid,description text,quantity numeric,unit_price numeric,gst_rate numeric);`);
 await db.exec(readFileSync('supabase/migrations/0033_purchase_quotes.sql','utf8'));
+await db.exec('create table accounts(id uuid primary key,company_id uuid,active boolean,type text)');
+await db.exec(readFileSync('supabase/migrations/0034_purchase_quote_expense_lines.sql','utf8'));
 const ids=Array.from({length:6},(_,i)=>`00000000-0000-0000-0000-${String(i+1).padStart(12,'0')}`),[user,c,b,s,p,w]=ids;
 await db.query('insert into auth.users values($1)',[user]);await db.query('insert into companies values($1)',[c]);await db.query('insert into branches values($1,$2,true)',[b,c]);await db.query("insert into contacts values($1,$2,true,'supplier')",[s,c]);await db.query('insert into products values($1,$2,true,false)',[p,c]);await db.query('insert into warehouses(id,company_id,branch_id,active) values($1,$2,$3,true)',[w,c,b]);
 const items=JSON.stringify([{product_id:p,description:'Item',quantity:'2',unit_price:'100',gst_rate:'18'}]);
@@ -14,4 +16,8 @@ const create=(lines=items)=>db.query('insert into purchase_quotes(company_id,bra
 await assert.rejects(create(JSON.stringify([{product_id:p,description:'Item',quantity:'NaN',unit_price:'100',gst_rate:'18'}])));
 const id=(await create()).rows[0].id;await assert.rejects(db.query('select convert_purchase_quote($1)',[id]));await db.query("update purchase_quotes set status='approved' where id=$1",[id]);await assert.rejects(db.query("update purchase_quotes set notes='changed' where id=$1",[id]));
 await db.exec("set test.allowed='no'");await assert.rejects(db.query('select convert_purchase_quote($1)',[id]));await db.exec("set test.allowed='yes'");await db.query('select convert_purchase_quote($1)',[id]);await assert.rejects(db.query('select convert_purchase_quote($1)',[id]));assert.equal((await db.query('select count(*)::int n from purchase_orders')).rows[0].n,1);assert.equal((await db.query('select warehouse_id from purchase_orders')).rows[0].warehouse_id,w);
+const expense='00000000-0000-0000-0000-000000000007';await db.query("insert into accounts values($1,$2,true,'expense')",[expense,c]);
+const expenseItems=JSON.stringify([{product_id:null,expense_account_id:expense,description:'Consulting',quantity:'1',unit_price:'50',gst_rate:'0'}]);
+const expenseQuote=(await create(expenseItems)).rows[0].id;await db.query("update purchase_quotes set status='approved' where id=$1",[expenseQuote]);await db.query('select convert_purchase_quote($1)',[expenseQuote]);assert.equal((await db.query('select expense_account_id from purchase_order_lines where expense_account_id is not null')).rows[0].expense_account_id,expense);
+await assert.rejects(create(JSON.stringify([{product_id:null,description:'No expense account',quantity:'1',unit_price:'50',gst_rate:'0'}])));
 await db.close();console.log('Purchase quote validation, immutability, permission, warehouse mapping and duplicate conversion checks passed in isolated database.');
