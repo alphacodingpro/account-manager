@@ -74,7 +74,8 @@
 - [ ] Billable Time
 - [x] Invoice/bill-backed Delivery Notes and Goods Receipts: goods-only searchable directory, full quantity view and print/PDF without duplicate stock posting
 - [ ] Independent uninvoiced delivery/receipt drafts, physical handover confirmation and returns-aware quantities
-- [ ] Purchase Quotes
+- [x] Stock-product Purchase Quotes: company-scoped searchable drafts, edit/delete, approval lock and atomic purchase-order conversion
+- [ ] Purchase Quotes: service/expense-only lines and dedicated print/view
 - [ ] Inventory Write-offs and Production Orders
 - [x] Payslips directory: posted payroll only, employee/period search, full earnings/deductions and print/PDF
 - [ ] Projects

@@ -1,0 +1,17 @@
+// Optional prerequisite: npm install --no-save @electric-sql/pglite
+import {PGlite} from '@electric-sql/pglite';import {readFileSync} from 'node:fs';import assert from 'node:assert/strict';
+const db=new PGlite();await db.exec(`create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql as $$select '00000000-0000-0000-0000-000000000001'::uuid$$;
+create function has_company_permission(uuid,text) returns boolean language sql as $$select coalesce(current_setting('test.allowed',true),'yes')='yes'$$;
+create function write_audit_log() returns trigger language plpgsql as $$begin return coalesce(new,old);end$$;
+create table companies(id uuid primary key);create table branches(id uuid primary key,company_id uuid,active boolean);create table contacts(id uuid primary key,company_id uuid,active boolean,kind text);create table products(id uuid primary key,company_id uuid,active boolean,is_service boolean);create table warehouses(id uuid primary key,company_id uuid,branch_id uuid,active boolean,created_at timestamptz default now());
+create table purchase_orders(id uuid primary key default gen_random_uuid(),company_id uuid,branch_id uuid,warehouse_id uuid,supplier_id uuid,order_date date,supplier_reference text,notes text,created_by uuid);
+create table purchase_order_lines(purchase_order_id uuid,product_id uuid,description text,quantity numeric,unit_price numeric,gst_rate numeric);`);
+await db.exec(readFileSync('supabase/migrations/0033_purchase_quotes.sql','utf8'));
+const ids=Array.from({length:6},(_,i)=>`00000000-0000-0000-0000-${String(i+1).padStart(12,'0')}`),[user,c,b,s,p,w]=ids;
+await db.query('insert into auth.users values($1)',[user]);await db.query('insert into companies values($1)',[c]);await db.query('insert into branches values($1,$2,true)',[b,c]);await db.query("insert into contacts values($1,$2,true,'supplier')",[s,c]);await db.query('insert into products values($1,$2,true,false)',[p,c]);await db.query('insert into warehouses(id,company_id,branch_id,active) values($1,$2,$3,true)',[w,c,b]);
+const items=JSON.stringify([{product_id:p,description:'Item',quantity:'2',unit_price:'100',gst_rate:'18'}]);
+const create=(lines=items)=>db.query('insert into purchase_quotes(company_id,branch_id,supplier_id,quote_date,valid_until,items) values($1,$2,$3,current_date,current_date+7,$4) returning id',[c,b,s,lines]);
+await assert.rejects(create(JSON.stringify([{product_id:p,description:'Item',quantity:'NaN',unit_price:'100',gst_rate:'18'}])));
+const id=(await create()).rows[0].id;await assert.rejects(db.query('select convert_purchase_quote($1)',[id]));await db.query("update purchase_quotes set status='approved' where id=$1",[id]);await assert.rejects(db.query("update purchase_quotes set notes='changed' where id=$1",[id]));
+await db.exec("set test.allowed='no'");await assert.rejects(db.query('select convert_purchase_quote($1)',[id]));await db.exec("set test.allowed='yes'");await db.query('select convert_purchase_quote($1)',[id]);await assert.rejects(db.query('select convert_purchase_quote($1)',[id]));assert.equal((await db.query('select count(*)::int n from purchase_orders')).rows[0].n,1);assert.equal((await db.query('select warehouse_id from purchase_orders')).rows[0].warehouse_id,w);
+await db.close();console.log('Purchase quote validation, immutability, permission, warehouse mapping and duplicate conversion checks passed in isolated database.');
