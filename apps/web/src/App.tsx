@@ -1,3 +1,4 @@
+import { WriteoffsView } from "./WriteoffsView";
 import PurchaseQuotes from "./PurchaseQuotes";
 import { GoodsDocumentsView } from "./GoodsDocumentsView";
 import { LatePaymentFeesView } from "./LatePaymentFeesView";
@@ -847,7 +848,7 @@ function Dashboard({
             </div>}
             {name === "Accounting" && view === "Accounting" && <div className="sales-submenu"><button className={!plannedModule ? "active" : ""} onClick={() => {setPlannedModule("");setMenu(false);}}>Journal Entries & Chart of Accounts</button></div>}
             {plannedModules[name] && ((name === "Sales" && salesExpanded) || (name === "Purchases" && purchasesExpanded) || (name === "Banking" && bankingExpanded) || (name === "Inventory" && inventoryExpanded) || (name === "Payroll" && payrollExpanded) || (name === "Settings" && settingsExpanded) || (name === "Accounting" && view === "Accounting")) && <div className="sales-submenu planned-submenu">
-              {plannedModules[name]?.map(label => <button key={label} className={view === name && plannedModule === label ? "active" : ""} aria-current={view === name && plannedModule === label ? "page" : undefined} onClick={() => {setView(name);setPlannedModule(label);setMenu(false);}}><span>{label}</span>{!["Customers","Suppliers","Inter Account Transfers","Expense Claims","Payslips","Late Payment Fees","Delivery Notes","Goods Receipts","Purchase Quotes"].includes(label) && <small>Planned</small>}</button>)}
+              {plannedModules[name]?.map(label => <button key={label} className={view === name && plannedModule === label ? "active" : ""} aria-current={view === name && plannedModule === label ? "page" : undefined} onClick={() => {setView(name);setPlannedModule(label);setMenu(false);}}><span>{label}</span>{!["Customers","Suppliers","Inter Account Transfers","Expense Claims","Payslips","Late Payment Fees","Delivery Notes","Goods Receipts","Purchase Quotes","Inventory Write-offs"].includes(label) && <small>Planned</small>}</button>)}
             </div>}
             </div>
           ))}
@@ -912,7 +913,8 @@ function Dashboard({
                 {plannedModule === "Late Payment Fees" && <LatePaymentFeesView key={companyId} companyId={companyId}/>}
                 {["Delivery Notes","Goods Receipts"].includes(plannedModule) && <GoodsDocumentsView key={`${companyId}:${plannedModule}`} companyId={companyId} companyName={company?.name||"Company"} kind={plannedModule === "Delivery Notes" ? "delivery" : "receipt"} onSource={()=>{setPlannedModule("");if(plannedModule === "Delivery Notes"){setView("Sales");setSalesSection("invoices");}else{setView("Purchases");setPurchasesSection("bills");}}}/>}
                 {plannedModule === "Purchase Quotes" && <PurchaseQuotes companyId={companyId} branches={branches} accounts={accounts} onConverted={async()=>{setPlannedModule("");setView("Purchases");setPurchasesSection("orders");}}/>}
-                {plannedModule && !["Customers","Suppliers","Inter Account Transfers","Expense Claims","Payslips","Late Payment Fees","Delivery Notes","Goods Receipts","Purchase Quotes"].includes(plannedModule) && <article className="panel planned-module-panel"><span className="status-badge">Coming soon</span><h2>{plannedModule}</h2><p>This module is planned. Entry forms, accounting rules and reports are not available yet.</p><button className="outline" onClick={() => setPlannedModule("")}>Back to {view}</button></article>}
+                {plannedModule === "Inventory Write-offs" && <WriteoffsView key={companyId} companyId={companyId} accounts={accounts}/>}
+                {plannedModule && !["Customers","Suppliers","Inter Account Transfers","Expense Claims","Payslips","Late Payment Fees","Delivery Notes","Goods Receipts","Purchase Quotes","Inventory Write-offs"].includes(plannedModule) && <article className="panel planned-module-panel"><span className="status-badge">Coming soon</span><h2>{plannedModule}</h2><p>This module is planned. Entry forms, accounting rules and reports are not available yet.</p><button className="outline" onClick={() => setPlannedModule("")}>Back to {view}</button></article>}
           {!plannedModule && <>
           {view === "Overview" && (
             <Overview

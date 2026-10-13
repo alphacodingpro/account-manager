@@ -76,7 +76,8 @@
 - [ ] Independent uninvoiced delivery/receipt drafts, physical handover confirmation and returns-aware quantities
 - [x] Stock-product Purchase Quotes: company-scoped searchable drafts, edit/delete, approval lock and atomic purchase-order conversion
 - [x] Purchase Quotes: service/expense-only lines, validated expense-account conversion and dedicated print/view
-- [ ] Inventory Write-offs and Production Orders
+- [x] Inventory Write-offs: atomic stock-loss/expense posting, source reversal, journal-only reversal guard (requires inventory + accounting permission)
+- [ ] Production Orders
 - [x] Payslips directory: posted payroll only, employee/period search, full earnings/deductions and print/PDF
 - [ ] Projects
 - [ ] Fixed Assets and Depreciation Entries
