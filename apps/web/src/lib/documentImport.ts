@@ -160,7 +160,9 @@ export async function readDocument(file: File, nativePdfOnly = false): Promise<s
   if (extension === "pdf") {
     const pdfjs = await import("pdfjs-dist");
     pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
-    const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+    const loadingTask = pdfjs.getDocument({ data: await file.arrayBuffer() });
+    try {
+    const pdf = await loadingTask.promise;
     if (pdf.numPages > 10) throw new Error("Maximum 10 pages per document.");
     const pages: string[] = [];
     for (let index = 1; index <= pdf.numPages; index++) {
@@ -189,6 +191,7 @@ export async function readDocument(file: File, nativePdfOnly = false): Promise<s
       }
     }
     return pages.join("\n");
+    } finally { await loadingTask.destroy(); }
   }
   throw new Error("Supported formats: PDF, JPG, PNG, WebP, DOCX and TXT. Legacy DOC files must be converted to DOCX or PDF.");
 }
