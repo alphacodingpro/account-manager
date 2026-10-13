@@ -72,7 +72,8 @@
 - [x] Expense Claims: full cash/bank reimbursement, duplicate prevention and reversal/reimbursement guard
 - [ ] Expense Claims: partial settlements, receipt attachments and dedicated approval workflow
 - [ ] Billable Time
-- [ ] Delivery Notes and Goods Receipts
+- [x] Invoice/bill-backed Delivery Notes and Goods Receipts: goods-only searchable directory, full quantity view and print/PDF without duplicate stock posting
+- [ ] Independent uninvoiced delivery/receipt drafts, physical handover confirmation and returns-aware quantities
 - [ ] Purchase Quotes
 - [ ] Inventory Write-offs and Production Orders
 - [x] Payslips directory: posted payroll only, employee/period search, full earnings/deductions and print/PDF
