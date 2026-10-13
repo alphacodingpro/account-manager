@@ -73,7 +73,8 @@
 - [ ] Expense Claims: partial settlements, receipt attachments and dedicated approval workflow
 - [ ] Billable Time
 - [x] Invoice/bill-backed Delivery Notes and Goods Receipts: goods-only searchable directory, full quantity view and print/PDF without duplicate stock posting
-- [ ] Independent uninvoiced delivery/receipt drafts, physical handover confirmation and returns-aware quantities
+- [x] Independent uninvoiced delivery/receipt draft capture, atomic JSON line edits, review/delete, search and company/role validation
+- [ ] Independent goods posting, physical handover confirmation, invoice/bill linking and returns-aware quantities
 - [x] Stock-product Purchase Quotes: company-scoped searchable drafts, edit/delete, approval lock and atomic purchase-order conversion
 - [x] Purchase Quotes: service/expense-only lines, validated expense-account conversion and dedicated print/view
 - [x] Inventory Write-offs: atomic stock-loss/expense posting, source reversal, journal-only reversal guard (requires inventory + accounting permission)
