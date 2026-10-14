@@ -908,7 +908,7 @@ function Dashboard({
           {error && <p className="alert">{error}</p>}
                 {["Customers","Suppliers"].includes(plannedModule) && <ContactsView key={`${companyId}:${plannedModule}`} companyId={companyId} kind={plannedModule === "Customers" ? "customer" : "supplier"}/>}
                 {plannedModule === "Inter Account Transfers" && <TransfersView key={companyId} companyId={companyId} accounts={accounts}/>}
-                {plannedModule === "Expense Claims" && <ExpenseClaimsView key={companyId} companyId={companyId} accounts={accounts}/>}
+                {plannedModule === "Expense Claims" && <ExpenseClaimsView key={companyId} companyId={companyId} accounts={accounts} canApprove={accessRole === "owner" || accessRole === "admin"}/>}
                 {plannedModule === "Payslips" && <PayslipsView key={companyId} companyId={companyId} companyName={company?.name||"Company"}/>}
                 {plannedModule === "Late Payment Fees" && <LatePaymentFeesView key={companyId} companyId={companyId}/>}
                 {["Delivery Notes","Goods Receipts"].includes(plannedModule) && <GoodsDocumentsView key={`${companyId}:${plannedModule}`} companyId={companyId} companyName={company?.name||"Company"} kind={plannedModule === "Delivery Notes" ? "delivery" : "receipt"} onSource={()=>{setPlannedModule("");if(plannedModule === "Delivery Notes"){setView("Sales");setSalesSection("invoices");}else{setView("Purchases");setPurchasesSection("bills");}}}/>}
