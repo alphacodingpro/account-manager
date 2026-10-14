@@ -2,6 +2,8 @@
 
 ## Milestone 1 — Foundation
 
+- [x] Repeatable isolated accounting/database regression suite and CI type-check/test/build gate before migration deployment
+
 - [x] Authentication and profile
 - [x] Company onboarding and multi-company switcher
 - [x] Branch creation and live branch list

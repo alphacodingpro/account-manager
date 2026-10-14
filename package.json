@@ -2,13 +2,21 @@
   "name": "cloudledger-pk",
   "private": true,
   "version": "0.1.0",
-  "workspaces": ["apps/*"],
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "dev": "concurrently \"npm run dev -w @cloudledger/web\" \"npm run start:dev -w @cloudledger/api\"",
     "build": "npm run build -w @cloudledger/api && npm run build -w @cloudledger/web",
     "test": "npm run test -w @cloudledger/api && node --test apps/web/tests/document-import.test.mjs && node scripts/test-aging-migration.mjs && node scripts/test-quotation-migration.mjs && node scripts/test-purchase-order-migration.mjs && node scripts/test-partial-purchase-receipts.mjs && node scripts/test-sales-order-migration.mjs && node scripts/test-sales-credit-note-migration.mjs && node scripts/test-purchase-debit-note-migration.mjs",
-    "typecheck": "npm run typecheck -w @cloudledger/web && npm run typecheck -w @cloudledger/api"
+    "typecheck": "npm run typecheck -w @cloudledger/web && npm run typecheck -w @cloudledger/api",
+    "test:db": "node scripts/test-accounting-database.mjs"
   },
-  "devDependencies": {"concurrently": "^9.0.0"},
-  "engines": {"node": ">=20"}
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.9",
+    "concurrently": "^9.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
 }
