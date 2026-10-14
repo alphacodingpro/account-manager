@@ -70,7 +70,8 @@
 - [x] Inter Account Transfers: atomic cash/bank journal posting with company/account validation; existing Accounting reversal path
 - [x] Expense Claims core: journal-backed capture, atomic draft edits/posting, full view, search, deletion and reversal
 - [x] Expense Claims: full cash/bank reimbursement, duplicate prevention and reversal/reimbursement guard
-- [ ] Expense Claims: partial settlements, receipt attachments and dedicated approval workflow
+- [x] Expense Claims: partial reimbursements, paid/remaining balance, per-payment reversal and retry idempotency
+- [ ] Expense Claims: receipt attachments and dedicated approval workflow
 - [ ] Billable Time
 - [x] Invoice/bill-backed Delivery Notes and Goods Receipts: goods-only searchable directory, full quantity view and print/PDF without duplicate stock posting
 - [x] Independent uninvoiced delivery/receipt draft capture, atomic JSON line edits, review/delete, search and company/role validation
