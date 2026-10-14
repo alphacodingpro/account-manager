@@ -9,7 +9,7 @@ const suites=[
  'test-late-payment-fees.mjs','test-purchase-quotes.mjs',
  'test-inventory-writeoffs.mjs','test-goods-drafts.mjs',
  'test-goods-receipt-conversion.mjs','test-goods-delivery-conversion.mjs',
- 'test-goods-handover.mjs',
+ 'test-goods-handover.mjs','test-partial-goods-handover.mjs',
 ];
 for(const suite of suites){
  console.log(`\nDatabase regression: ${suite}`);
