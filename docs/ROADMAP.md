@@ -78,6 +78,7 @@
 - [x] Independent uninvoiced delivery/receipt draft capture, atomic JSON line edits, review/delete, search and company/role validation
 - [x] Goods receipt draft to purchase bill: atomic complete-line conversion, explicit price/GST review, idempotent linking and source lock; stock posts only through the bill
 - [x] Delivery draft to sales invoice: complete-line price/GST review, atomic idempotent link, selected-warehouse posting and original-warehouse credit returns
+- [x] Posted goods physical confirmation: recipient/date, immutable line snapshots, auditable cancellation and duplicate protection; confirmation never repeats stock posting
 - [ ] Independent goods posting, physical handover confirmation, invoice/bill linking and returns-aware quantities
 - [x] Stock-product Purchase Quotes: company-scoped searchable drafts, edit/delete, approval lock and atomic purchase-order conversion
 - [x] Purchase Quotes: service/expense-only lines, validated expense-account conversion and dedicated print/view
