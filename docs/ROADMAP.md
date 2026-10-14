@@ -72,10 +72,11 @@
 - [x] Expense Claims: full cash/bank reimbursement, duplicate prevention and reversal/reimbursement guard
 - [x] Expense Claims: partial reimbursements, paid/remaining balance, per-payment reversal and retry idempotency
 - [x] Expense Claims: owner/admin approval required before posting; edits invalidate previous approval, approval audit records retained
-- [ ] Expense Claims: receipt attachments
+- [x] Expense Claims: private PDF/image receipt attachments, draft-only changes, approval invalidation and posted receipt protection
 - [ ] Billable Time
 - [x] Invoice/bill-backed Delivery Notes and Goods Receipts: goods-only searchable directory, full quantity view and print/PDF without duplicate stock posting
 - [x] Independent uninvoiced delivery/receipt draft capture, atomic JSON line edits, review/delete, search and company/role validation
+- [x] Goods receipt draft to purchase bill: atomic complete-line conversion, explicit price/GST review, idempotent linking and source lock; stock posts only through the bill
 - [ ] Independent goods posting, physical handover confirmation, invoice/bill linking and returns-aware quantities
 - [x] Stock-product Purchase Quotes: company-scoped searchable drafts, edit/delete, approval lock and atomic purchase-order conversion
 - [x] Purchase Quotes: service/expense-only lines, validated expense-account conversion and dedicated print/view

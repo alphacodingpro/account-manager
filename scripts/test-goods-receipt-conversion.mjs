@@ -1,0 +1,28 @@
+// Optional prerequisite: npm install --no-save @electric-sql/pglite
+import {PGlite} from '@electric-sql/pglite';import {readFileSync} from 'node:fs';import assert from 'node:assert/strict';
+const db=new PGlite();await db.exec(`create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql as $$select '00000000-0000-0000-0000-000000000001'::uuid$$;
+create function has_company_permission(company uuid,permission text) returns boolean language sql as $$select company='00000000-0000-0000-0000-000000000002'::uuid and permission in ('sales','purchases') and coalesce(current_setting('test.allowed',true),'yes')<>'no'$$;
+create function write_audit_log() returns trigger language plpgsql as $$begin return coalesce(new,old);end$$;
+create table companies(id uuid primary key);create table contacts(id uuid primary key,company_id uuid,active boolean,kind text);create table branches(id uuid primary key,company_id uuid,active boolean);create table warehouses(id uuid primary key,company_id uuid,active boolean,branch_id uuid);create table products(id uuid primary key,company_id uuid,active boolean,is_service boolean);`);
+await db.exec(`create table purchase_bills(id uuid primary key default gen_random_uuid(),company_id uuid,branch_id uuid,warehouse_id uuid,supplier_id uuid,supplier_reference text,bill_date date,due_date date,notes text,created_by uuid);create table purchase_bill_lines(bill_id uuid references purchase_bills(id) on delete cascade,product_id uuid,description text,quantity numeric,unit_price numeric,gst_rate numeric);`);
+await db.exec(readFileSync('supabase/migrations/0036_independent_goods_drafts.sql','utf8'));
+await db.exec(readFileSync('supabase/migrations/0040_goods_receipt_bill_conversion.sql','utf8'));
+const ids=Array.from({length:5},(_,i)=>`00000000-0000-0000-0000-${String(i+1).padStart(12,'0')}`),[u,c,s,w,p]=ids;await db.query('insert into auth.users values($1)',[u]);await db.query('insert into companies values($1)',[c]);await db.query("insert into contacts values($1,$2,true,'both')",[s,c]);await db.query('insert into warehouses values($1,$2,true,$2)',[w,c]);await db.query('insert into products values($1,$2,true,false)',[p,c]);
+await db.query('insert into branches values($1,$1,true)',[c]);
+await db.exec('grant usage on schema public,auth to authenticated;grant select on companies,contacts,warehouses,products,branches,goods_receipt_bill_links,purchase_bills,purchase_bill_lines,auth.users to authenticated;grant all on goods_document_drafts to authenticated;grant usage,select on all sequences in schema public to authenticated;set role authenticated;');
+const line={product_id:p,description:'Stock product',quantity:'2.5'};
+const save=(kind='delivery',items=[line],warehouse=w)=>db.query('insert into goods_document_drafts(company_id,kind,document_date,contact_id,warehouse_id,items) values($1,$2,current_date,$3,$4,$5) returning id',[c,kind,s,warehouse,JSON.stringify(items)]);
+const id=(await save('receipt')).rows[0].id;
+const prices=[{product_id:p,unit_price:'100.50',gst_rate:'18'}];
+const convert=(data=prices,due='2026-12-31')=>db.query('select convert_goods_receipt_to_bill($1,$2,$3) id',[id,due,JSON.stringify(data)]);
+await assert.rejects(convert([]));await assert.rejects(convert([{...prices[0],unit_price:'NaN'}]));await assert.rejects(convert([{...prices[0],product_id:c}]));await assert.rejects(convert(prices,'2000-01-01'));
+assert.equal((await db.query('select count(*)::int n from purchase_bills')).rows[0].n,0);
+await db.exec("set test.allowed='no'");await assert.rejects(convert());await db.exec("set test.allowed='yes'");
+const bill=(await convert()).rows[0].id;assert.equal((await convert()).rows[0].id,bill);
+const lineRow=(await db.query('select * from purchase_bill_lines')).rows[0];assert.equal(lineRow.description,line.description);assert.equal(Number(lineRow.quantity),2.5);assert.equal(Number(lineRow.unit_price),100.5);assert.equal(Number(lineRow.gst_rate),18);
+assert.equal((await db.query('select count(*)::int n from purchase_bills')).rows[0].n,1);
+await assert.rejects(db.query("update goods_document_drafts set notes='changed' where id=$1",[id]));await assert.rejects(db.query('delete from goods_document_drafts where id=$1',[id]));
+await db.exec('reset role');await db.query('delete from purchase_bills where id=$1',[bill]);assert.equal((await db.query('select count(*)::int n from goods_receipt_bill_links')).rows[0].n,0);
+await db.exec('set role authenticated');await db.query('delete from goods_document_drafts where id=$1',[id]);
+const delivery=(await save()).rows[0].id;await assert.rejects(db.query('select convert_goods_receipt_to_bill($1,current_date,$2)',[delivery,JSON.stringify(prices)]));
+await db.close();console.log('Receipt conversion complete-line mapping, price/GST validation, rollback, idempotency, source lock and draft bill deletion checks passed.');
