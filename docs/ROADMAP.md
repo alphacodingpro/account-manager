@@ -2,6 +2,8 @@
 
 ## Milestone 1 — Foundation
 
+- [x] Manual reversal source guards cover invoices, bills, payroll, payments, sales credit notes and purchase debit notes; reversal-of-reversal is rejected and internal source helper stays private; authenticated write-off reversal can invoke it only after inventory/accounting validation
+
 - [x] Repeatable isolated accounting/database regression suite and CI type-check/test/build gate before migration deployment
 
 - [x] Authentication and profile
