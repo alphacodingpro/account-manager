@@ -88,7 +88,8 @@
 - [x] Partial posted-goods handover/receipt: per-line remaining quantities, posted returns, separate cancellations, legacy evidence preservation and request idempotency
 - [x] Independent known-cost Goods Receipt posting: Inventory/GRNI accrual, same-cost full bill matching without duplicate stock, bill void and unused-receipt reversal restoring valuation
 - [x] Full receipt bill matching with higher/lower price variance expensed separately; receipt stock valuation retained, void/rebill supported (0047)
-- [ ] Independent delivery posting, partial bill matching and later-activity valuation reversals
+- [x] Independent dispatch stock posting, dispatch clearing asset, full invoice matching without duplicate issue, original-cost returns, void/replacement and controlled reversal (0048)
+- [ ] Partial receipt/delivery billing and later-activity valuation reversals
 - [x] Stock-product Purchase Quotes: company-scoped searchable drafts, edit/delete, approval lock and atomic purchase-order conversion
 - [x] Purchase Quotes: service/expense-only lines, validated expense-account conversion and dedicated print/view
 - [x] Inventory Write-offs: atomic stock-loss/expense posting, source reversal, journal-only reversal guard (requires inventory + accounting permission)
