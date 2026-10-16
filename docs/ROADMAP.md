@@ -92,7 +92,8 @@
 - [x] Partial posted-receipt billing with immutable reservations, overbilling protection, draft release, void/rebill, cumulative cost rounding and no duplicate stock (0049)
 - [x] Partial posted-dispatch invoicing, immutable quantity reservations, cumulative COGS clearing, invoice void/replacement and allocated-cost return/void snapshots (0050)
 - [x] Fractional stock cost precision, zero-cost weighted averaging, monetary-value return void and later-valuation safety guards (0051)
-- [ ] Reviewed later-activity stock valuation adjustments/reversals
+- [x] Reviewed current stock value correction, warehouse/branch ledger allocation, searchable source history and guarded reversal (0052)
+- [ ] Acceptance for consumed-stock/source correction scenarios and full stock-to-ledger chains
 - [x] Stock-product Purchase Quotes: company-scoped searchable drafts, edit/delete, approval lock and atomic purchase-order conversion
 - [x] Purchase Quotes: service/expense-only lines, validated expense-account conversion and dedicated print/view
 - [x] Inventory Write-offs: atomic stock-loss/expense posting, source reversal, journal-only reversal guard (requires inventory + accounting permission)

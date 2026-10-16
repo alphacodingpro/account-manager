@@ -1,0 +1,13 @@
+# Reviewed inventory valuation corrections
+
+Open Inventory → Stock adjustments → Stock valuation adjustments. Select an active stock product with positive quantity, review its current quantity/average and estimated money change, enter the corrected average cost (up to four decimals), choose a company expense offset account and enter a supporting reason. Confirm before posting. Inventory and accounting permissions are both required.
+
+This is a current-date, company-wide carrying-cost correction; posting and reversal use the Pakistan business date (Asia/Karachi). It is not a receipt/dispatch quantity change, an automatic market-price uplift or a replacement for the original sales/purchase document. The chosen expense account receives the offset: a value increase debits Inventory/credits the expense; a decrease credits Inventory/debits the expense. Use a reviewed cost and the appropriate adjustment account.
+
+The server locks the product and checks the quantity/average still match the reviewed snapshot. It reconciles warehouse totals to the product quantity and rejects negative balances or inactive/mismatched warehouses/branches. It allocates rounded value changes cumulatively across warehouses and posts a balanced journal in each warehouse's branch. The allocations sum exactly to the product value change. No quantity stock movement is created. The new average, immutable source record, journals and audit records commit together; any failure rolls everything back. Zero monetary changes are rejected.
+
+The source keeps old/new quantity, average and money values, warehouse/branch allocations, journal identifiers, offset account, reason, author and timestamp. A request UUID prevents duplicate posts on an unchanged retry. History is searchable; View shows the allocation breakdown.
+
+Reverse from the valuation history with a reason. This restores the previous average and creates opposite journals atomically. Repeated reversal is idempotent. Later stock movement or a later active valuation adjustment blocks an earlier reversal; reverse the latest unused adjustment first, or enter a new reviewed correction at current balances. Individual journals cannot be manually reversed. Receipt and dispatch reversal cannot overwrite a later active value-only adjustment either.
+
+This flow does not force a consumed-stock return reversal or undo later business activity. Such conflicts still need an accountant-reviewed current correction and, where quantity is no longer available, the appropriate source/stock workflow. Historical posted movement/journal amounts are never rewritten. Branch-specific authorization acceptance and a full clean-schema integration run remain in the Phase 1 checklist.

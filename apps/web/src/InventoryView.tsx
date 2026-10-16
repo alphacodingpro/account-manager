@@ -1,3 +1,4 @@
+import InventoryRevaluations from "./InventoryRevaluations";
 import { useEffect, useState } from "react";
 import { ArrowRightLeft, Package, Pencil, Plus, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { supabase } from "./lib/supabase";
@@ -278,6 +279,7 @@ export default function InventoryView({ companyId, section = "products" }: { com
           {stockBalances.map((row) => <div className="inventory-row" key={`${row.warehouse_id}-${row.product_id}`}><span><b>{row.warehouse_name}</b></span><span className="code">{row.sku}</span><span>{row.product_name}</span><span>{row.quantity}</span><span>{pkr.format(row.average_cost)}</span><span><b>{pkr.format(row.stock_value)}</b></span><span></span></div>)}
         </div>}
       </article>}
+      {section === "adjustments" && <InventoryRevaluations key={companyId} companyId={companyId} products={products} warehouses={warehouses} onChanged={load}/>}
       {["adjustments", "transfers", "movements"].includes(section) && <article className="panel data-panel">
         <div className="panel-head"><div><h3>{section === "adjustments" ? "Stock adjustments" : section === "transfers" ? "Warehouse transfers" : "Stock movements"}</h3><p>{section === "movements" ? "Recent inventory movement history" : "Record inventory changes with an audit reference"}</p></div><SlidersHorizontal /></div>
         {section === "adjustments" && <form className="product-form" onSubmit={saveAdjustment}>
