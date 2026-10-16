@@ -34,3 +34,11 @@ The existing navigation and accounting workflows are retained. Shared controls p
 The reviewed-edit database test applies all migrations to an isolated PostgreSQL instance, then exercises the actual RLS, document guards, audit triggers and posting functions. It covers all six document edit types, five master types, payroll recalculation, stale snapshots, immutable posted/approved records, return limits and rollback after a later line fails.
 
 Browser checks at 390px and 1280px exercise search, complete line review, cancel without writes, Escape, edit payloads, bank editing and posted edit-button suppression using test fixtures. No production financial data is used in browser tests.
+
+## Line-level history evidence
+
+Migration `0054_document_line_audit.sql` records prospective line insert/update/delete evidence for invoices, bills, quotations, sales/purchase orders, credit/debit notes and journals. Before/after snapshots include descriptions, quantities, prices, GST and generated amounts. Actual no-op updates do not create line events. Audit events participate in the same transaction as the business change and disappear if that transaction fails.
+
+Deleting a draft retains its complete line snapshot before the foreign-key cascade. Existing invoice/bill restoration remains unchanged; deletion snapshots for other document families provide review evidence and do not add unsupported Undo actions. A narrowly scoped cascade guard correction permits deleting draft quotations/orders/returns while retaining ordinary draft-parent checks, RLS and posted/approved record immutability.
+
+History details flatten nested line values into a readable Before/After table, default to changed fields, and permit reviewing all fields. Search includes both old and new values, so deleted descriptions are searchable. Historical gaps are not backfilled or reconstructed. For a line moved between accessible company drafts, source and destination events contain only their own side of the change.
