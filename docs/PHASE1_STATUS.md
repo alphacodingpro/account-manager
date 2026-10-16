@@ -5,7 +5,7 @@ Code inspection: 16 October 2026. This records implementation and acceptance gap
 | Area | Current code evidence | Remaining acceptance work |
 | --- | --- | --- |
 | Sales/purchase draft safety | Atomic create/edit/post RPCs in migration 0045; both entry screens use them; failed insert/post rollback tests | Verify draft edits and posting failure in a signed-in browser, including imported bills and order-linked documents |
-| Physical goods | Draft capture, bill/invoice conversion, selected warehouse, posted-document full/partial confirmation, cancellation and returns-aware remaining quantities (0036, 0040–0043, 0046) | Known-cost independent receipts now post Inventory/GRNI and match a same-cost full bill without duplicate stock; unused receipt reversal is supported. Independent delivery posting, partial matching, price variances and reversal after later stock activity remain |
+| Physical goods | Draft capture, bill/invoice conversion, selected warehouse, posted-document full/partial confirmation, cancellation and returns-aware remaining quantities (0036, 0040–0043, 0046–0047) | Known-cost independent receipts now post Inventory/GRNI and match a full bill with explicit expense price variance without duplicate stock; unused receipt reversal is supported. Independent delivery posting, partial matching and reversal after later stock activity remain |
 | Sales entry and documents | Customer, branch, dates, terms, reference, line description, quantity, price, GST, draft/post/correction | Billing-address snapshot/header description; per-line income account/discount; controlled rounding; consistent dedicated full view/print; print options |
 | Purchases | Stock/service/expense bills, input GST, drafts, payments, returns and order receiving | End-to-end imported bill review, duplicate supplier-reference behavior under concurrent saves, and consistent full view/print acceptance |
 | Payroll | Employee, attendance/leave capture, fixed allowances/deductions, payroll preparation/posting and payslip directory; loan schema/basic recovery calculation exists | Loan management UI and multiple-loan recovery review; attendance/leave-driven calculation; period/proration/duplicate-payroll protection; effective-dated EOBI/SESSI/income-tax configuration and tests |
@@ -22,7 +22,7 @@ Phase 1 closes only when its remaining functional rows above have a working path
 ## Execution order
 
 1. Preserve draft edits atomically in both core sales and purchase flows (implemented in this increment).
-2. Complete independent delivery posting and extend the implemented known-cost receipt flow to price variances/partial matching with controlled valuation reversals.
+2. Complete independent delivery posting and extend the implemented known-cost receipt flow to partial matching with controlled valuation reversals.
 3. Finish sales entry/document gaps and payroll calculation/loan/rule gaps.
 4. Complete real-document OCR verification and cross-module UX consistency.
 5. Run company/role/branch, stock-to-ledger, reporting and mobile acceptance; resolve failures before closing the phase.
