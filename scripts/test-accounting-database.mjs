@@ -3,6 +3,7 @@ import {fileURLToPath} from 'node:url';
 const root=fileURLToPath(new URL('../',import.meta.url));
 // These fixtures use isolated embedded PostgreSQL databases, never production.
 const suites=[
+ 'test-payroll-period-integrity.mjs',
  'test-reviewed-document-edits.mjs',
  'test-inventory-revaluations.mjs',
  'test-stock-cost-precision.mjs',
