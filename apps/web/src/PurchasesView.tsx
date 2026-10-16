@@ -90,7 +90,7 @@ export default function PurchasesView({ companyId, branches, accounts, onAccount
     if (shouldPost && importedDraft) return setMessage("First save the imported bill as a draft. Open it again after checking the document to post it.");
     if (!supplierId || !branchId) return setMessage("Select a supplier and branch.");
     if (lines.some((l) => !l.description || Number(l.quantity) <= 0 || (!l.productId && !l.accountId))) return setMessage("Complete every bill line.");
-    setBusy(true); let billId = editingBillId; let createdNow = false;
+    setBusy(true);
     try {
       const { data: auth } = await supabase.auth.getUser(); if (!auth.user) throw new Error("Session expired.");
       if (reference.trim()) {
@@ -99,13 +99,10 @@ export default function PurchasesView({ companyId, branches, accounts, onAccount
         if (duplicates.data?.some((bill) => bill.id !== editingBillId)) throw new Error("This supplier invoice number already exists. Review the document to avoid a duplicate bill.");
       }
       const payload={ company_id: companyId, branch_id: branchId, warehouse_id: warehouseId || null, supplier_id: supplierId, supplier_reference: reference.trim() || null, bill_date: date, due_date: dueDate, notes: importedDraft ? `Imported from ${importSource}; reviewed and saved as draft.` : draftNotes, created_by: auth.user.id };
-      if(editingBillId){const updated=await supabase.from("purchase_bills").update(payload).eq("id",editingBillId).eq("status","draft");if(updated.error)throw updated.error;const removed=await supabase.from("purchase_bill_lines").delete().eq("bill_id",editingBillId);if(removed.error)throw removed.error;}
-      else{const created = await supabase.from("purchase_bills").insert(payload).select("id").single();if (created.error) throw created.error; billId = created.data.id; createdNow=true;}
-      const inserted = await supabase.from("purchase_bill_lines").insert(lines.map((l) => ({ bill_id: billId, purchase_order_line_id: l.sourceLineId || null, product_id: l.productId || null, expense_account_id: l.accountId || null, description: l.description, quantity: Number(l.quantity), unit_price: Number(l.unitPrice || 0), gst_rate: Number(l.gstRate || 0) })));
-      if (inserted.error) throw inserted.error;
-      if(shouldPost){const posted = await supabase.rpc("post_purchase_bill", { target_bill: billId }); if (posted.error) throw posted.error;}
+      const saved = await supabase.rpc("save_purchase_bill_draft", {target_bill:editingBillId||null,header:payload,items:lines.map(l=>({purchase_order_line_id:l.sourceLineId||null,product_id:l.productId||null,expense_account_id:l.accountId||null,description:l.description,quantity:l.quantity,unit_price:l.unitPrice||"0",gst_rate:l.gstRate||"0"})),should_post:shouldPost});
+      if(saved.error)throw saved.error;
       setBillOpen(false); setLines([blank()]); setReference(""); setEditingBillId(""); setImportedDraft(false); setImportSource(""); setDraftNotes(null); setMessage(shouldPost ? "Purchase bill posted successfully." : "Bill draft saved successfully."); await load();
-    } catch (error) { if (createdNow && billId) await supabase.from("purchase_bills").delete().eq("id", billId); setMessage(error instanceof Error ? error.message : "Unable to save bill."); }
+    } catch (error) { setMessage(error instanceof Error ? error.message : (error as {message?:string})?.message || "Unable to save bill."); }
     finally { setBusy(false); }
   }
   async function editBill(id:string){const [h,d]=await Promise.all([supabase.from("purchase_bills").select("supplier_id,branch_id,warehouse_id,bill_date,due_date,supplier_reference,status,notes").eq("id",id).single(),supabase.from("purchase_bill_lines").select("purchase_order_line_id,product_id,expense_account_id,description,quantity,unit_price,gst_rate").eq("bill_id",id).order("id")]);if(h.error||d.error)return setMessage(h.error?.message||d.error?.message||"Unable to load draft.");if(h.data.status!=="draft")return setMessage("Only draft bills can be edited.");setEditingBillId(id);setImportedDraft(false);setImportSource("");setDraftNotes(h.data.notes);setSupplierId(h.data.supplier_id);setBranchId(h.data.branch_id);setWarehouseId(h.data.warehouse_id||"");setDate(h.data.bill_date);setDueDate(h.data.due_date);setReference(h.data.supplier_reference||"");setLines((d.data??[]).map(l=>({productId:l.product_id||"",accountId:l.expense_account_id||"",sourceLineId:l.purchase_order_line_id||"",description:l.description,quantity:String(l.quantity),unitPrice:String(l.unit_price),gstRate:String(l.gst_rate)})));setBillOpen(true);setMessage("");}

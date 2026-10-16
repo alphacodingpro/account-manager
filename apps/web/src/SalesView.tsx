@@ -208,8 +208,6 @@ export default function SalesView({
       return setMessage("Every invoice line needs an item and quantity.");
     if (dueMode === "net" && (!/^\d+$/.test(netDays) || Number(netDays) > 3650)) return setMessage("Net terms must be between 0 and 3650 days.");
     setBusy(true);
-    let invoiceId = editingInvoiceId;
-    let createdNow = false;
     try {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error("Session expired.");
@@ -228,29 +226,13 @@ export default function SalesView({
         setCorrectingPosted(false); setEditingInvoiceId(""); setInvoiceOpen(addAnother); setLines([blank()]); setReference("");
         setMessage("Invoice changes saved successfully."); await load(); return;
       }
-      if (editingInvoiceId) {
-        const updated = await supabase.from("sales_invoices").update(payload).eq("id", editingInvoiceId).eq("status", "draft");
-        if (updated.error) throw updated.error;
-        const removed = await supabase.from("sales_invoice_lines").delete().eq("invoice_id", editingInvoiceId); if (removed.error) throw removed.error;
-      } else {
-        const inv = await supabase.from("sales_invoices").insert(payload).select("id").single();
-        if (inv.error) throw inv.error; invoiceId = inv.data.id; createdNow = true;
-      }
-      const inserted = await supabase
-        .from("sales_invoice_lines")
-        .insert(
-          lines.map((l) => ({
-            invoice_id: invoiceId,
-            sales_order_line_id: l.sourceLineId || null,
-            product_id: l.productId || null,
-            description: l.description,
-            quantity: Number(l.quantity),
-            unit_price: Number(l.unitPrice || 0),
-            gst_rate: Number(l.gstRate || 0),
-          })),
-        );
-      if (inserted.error) throw inserted.error;
-      if (shouldPost) { const posted = await supabase.rpc("post_sales_invoice", { target_invoice: invoiceId }); if (posted.error) throw posted.error; }
+      const saved = await supabase.rpc("save_sales_invoice_draft", {
+        target_invoice: editingInvoiceId || null,
+        header: payload,
+        items: lines.map(l => ({sales_order_line_id:l.sourceLineId || null,product_id:l.productId || null,description:l.description,quantity:l.quantity,unit_price:l.unitPrice || "0",gst_rate:l.gstRate || "0"})),
+        should_post: shouldPost,
+      });
+      if (saved.error) throw saved.error;
       setInvoiceOpen(addAnother);
       setLines([blank()]);
       setReference("");
@@ -258,10 +240,8 @@ export default function SalesView({
       setMessage(shouldPost ? "Sales invoice posted successfully." : "Invoice draft saved successfully.");
       await load();
     } catch (error) {
-      if (createdNow && invoiceId)
-        await supabase.from("sales_invoices").delete().eq("id", invoiceId);
       setMessage(
-        error instanceof Error ? error.message : "Unable to post invoice.",
+        error instanceof Error ? error.message : (error as {message?:string})?.message || "Unable to save invoice.",
       );
     } finally {
       setBusy(false);

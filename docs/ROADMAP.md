@@ -19,6 +19,8 @@
 
 ## Milestone 2 — Sales and purchases
 
+- [x] Atomic sales/purchase draft create/edit/post RPCs: failed line replacement or posting preserves the original header and all lines
+
 - [x] Customers and GST sales invoices
 - [x] Automatic receivable, sales and output-GST journal posting
 - [x] Sales quotation drafts, approval and controlled invoice conversion
