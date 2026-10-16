@@ -90,7 +90,8 @@
 - [x] Full receipt bill matching with higher/lower price variance expensed separately; receipt stock valuation retained, void/rebill supported (0047)
 - [x] Independent dispatch stock posting, dispatch clearing asset, full invoice matching without duplicate issue, original-cost returns, void/replacement and controlled reversal (0048)
 - [x] Partial posted-receipt billing with immutable reservations, overbilling protection, draft release, void/rebill, cumulative cost rounding and no duplicate stock (0049)
-- [ ] Partial delivery invoicing and later-activity valuation reversals
+- [x] Partial posted-dispatch invoicing, immutable quantity reservations, cumulative COGS clearing, invoice void/replacement and allocated-cost return/void snapshots (0050)
+- [ ] Later-activity valuation reversals and reviewed stock precision adjustments
 - [x] Stock-product Purchase Quotes: company-scoped searchable drafts, edit/delete, approval lock and atomic purchase-order conversion
 - [x] Purchase Quotes: service/expense-only lines, validated expense-account conversion and dedicated print/view
 - [x] Inventory Write-offs: atomic stock-loss/expense posting, source reversal, journal-only reversal guard (requires inventory + accounting permission)

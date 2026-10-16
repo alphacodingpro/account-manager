@@ -17,4 +17,14 @@ Delete an unposted linked invoice or void its posted invoice before reversing th
 
 ## Boundaries
 
-Full quantities only; no split invoicing of a dispatch. Already converted drafts cannot be retrospectively stock-posted. Reversed dispatches cannot be reused. Existing ordinary invoices and unposted goods draft conversions keep their original stock posting behavior. Posted dispatch and receipt snapshots are immutable and company-scoped; audit triggers record source activity.
+The standard conversion matches full quantities; the allocated-invoice form supports split invoicing of a posted dispatch. Already converted drafts cannot be retrospectively stock-posted. Reversed dispatches cannot be reused. Existing ordinary invoices and unposted goods draft conversions keep their original stock posting behavior. Posted dispatch and receipt snapshots are immutable and company-scoped; audit triggers record source activity.
+
+## Invoice a dispatch in parts
+
+On a posted delivery without a full-invoice link, open View → Invoice dispatch in parts. Review dispatched, reserved and available quantities, set quantities to invoice (zero skips a product), review selling prices/GST and create an allocated invoice draft. Review reference and dates from Sales invoices before posting.
+
+Draft and posted invoices reserve immutable product quantities. Delete a draft to change its allocation; invoice posting rejects changed allocated products/quantities. Prices/GST may be edited before posting. Voiding an unpaid posted invoice releases its quantity and restores only the allocated dispatch clearing cost. Stock stays dispatched. Existing payment and credit-note restrictions apply. Full conversion and active partial allocations cannot overlap. Retried saves with the same request UUID return the same draft.
+
+Each invoice transfers only its cumulative share of original dispatch cost to COGS, with final rounding clearing the original cost exactly. Partial-invoice returns retain immutable cost snapshots; cumulative return costs account for earlier posted returns and voided return holes, so allocated COGS cannot be over-reversed. Return voiding restores the snapshot journal and stock movement. Inventory uses two-decimal movement unit costs: returns that cannot represent the exact allocated money value at that precision are blocked for a reviewed valuation adjustment, rather than silently changing valuation. Small negative rounding allocations are likewise blocked.
+
+The generic posted correction shortcut cannot detach an allocated invoice from its dispatch. Void it and create another allocated invoice from the delivery. All active full/partial invoices must be deleted or voided before reversing dispatch; later stock activity still requires a separate valuation workflow.
