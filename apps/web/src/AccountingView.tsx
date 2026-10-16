@@ -1,3 +1,5 @@
+import { listRecords } from "./lib/listRecords";
+import { ListSearch, matchesRecord, RecordView } from "./RecordTools";
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, CheckCircle2, Pencil, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import { supabase } from "./lib/supabase";
@@ -45,7 +47,8 @@ export default function AccountingView({
   accounts: Account[];
   onAccountsChanged: () => void;
 }) {
-  const [showAccount, setShowAccount] = useState(false);
+  const [listQuery,setListQuery]=useState("");
+ const [showAccount, setShowAccount] = useState(false);
   const [editingAccountId, setEditingAccountId] = useState("");
   const [showJournal, setShowJournal] = useState(false);
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -74,7 +77,7 @@ export default function AccountingView({
     totals.debit > 0 &&
     Math.round(totals.debit * 100) === Math.round(totals.credit * 100);
   async function loadEntries() {
-    const { data, error } = await supabase
+    const { data, error } = await listRecords(supabase
       .from("journal_entries")
       .select(
         "id,entry_number,entry_date,reference,description,status,journal_lines(debit,credit)",
@@ -82,7 +85,7 @@ export default function AccountingView({
       .eq("company_id", companyId)
       .order("entry_date", { ascending: false })
       .order("entry_number", { ascending: false })
-      .limit(30);
+      .order("id"));
     if (error) setMessage(error.message);
     else setEntries((data ?? []) as Entry[]);
   }
@@ -199,7 +202,7 @@ export default function AccountingView({
     }
   }
   return (
-    <div className="accounting-stack">
+    <div className="accounting-stack"><ListSearch value={listQuery} onChange={setListQuery} records={[...accounts,...entries]}/>
       <article className="panel data-panel">
         <div className="panel-head">
           <div>
@@ -398,7 +401,7 @@ export default function AccountingView({
             <span>Status</span>
             <span>Actions</span>
           </div>
-          {accounts.map((a) => (
+          {accounts.filter(record=>matchesRecord(record,listQuery)).map((a) => (
             <div className="data-row" key={a.id}>
               <span className="code">{a.code}</span>
               <span>
@@ -407,7 +410,7 @@ export default function AccountingView({
               </span>
               <span className="capitalize">{a.type}</span>
               <span className="status">{a.active ? "Active" : "Inactive"}</span>
-              <span className="row-actions">{!a.system_account && <><button title="Edit" onClick={() => editAccount(a)}><Pencil size={14}/></button><button className="danger" title="Delete" onClick={() => deleteAccount(a)}><Trash2 size={14}/></button></>}</span>
+              <span className="row-actions"><RecordView companyId={companyId} table="accounts" id={a.id}/>{!a.system_account && <><button title="Edit" onClick={() => editAccount(a)}><Pencil size={14}/></button><button className="danger" title="Delete" onClick={() => deleteAccount(a)}><Trash2 size={14}/></button></>}</span>
             </div>
           ))}
         </div>
@@ -435,7 +438,7 @@ export default function AccountingView({
               <span>Status</span>
               <span>Actions</span>
             </div>
-            {entries.map((e) => (
+            {entries.filter(record=>matchesRecord(record,listQuery)).map((e) => (
               <div className="history-row" key={e.id}>
                 <span>{e.entry_date}</span>
                 <span>JV-{String(e.entry_number).padStart(5, "0")}</span>
@@ -453,7 +456,7 @@ export default function AccountingView({
                   <CheckCircle2 size={14} />
                   {e.status}
                 </span>
-                <span className="row-actions">{e.status === "posted" && <button title="Reverse entry" onClick={() => reverseEntry(e)}><RotateCcw size={14}/></button>}{e.status === "draft" && <button className="danger" title="Delete draft" onClick={async () => { if(confirm("Delete this draft journal?")){ const r=await supabase.from("journal_entries").delete().eq("id",e.id); if(r.error)setMessage(r.error.message); else loadEntries(); } }}><Trash2 size={14}/></button>}</span>
+                <span className="row-actions"><RecordView companyId={companyId} table="journal_entries" id={e.id} draft={e.status==="draft"&&!e.description?.startsWith("[Expense claim] ")} onSaved={loadEntries}/>{e.status === "posted" && <button title="Reverse entry" onClick={() => reverseEntry(e)}><RotateCcw size={14}/></button>}{e.status === "draft" && <button className="danger" title="Delete draft" onClick={async () => { if(confirm("Delete this draft journal?")){ const r=await supabase.from("journal_entries").delete().eq("id",e.id); if(r.error)setMessage(r.error.message); else loadEntries(); } }}><Trash2 size={14}/></button>}</span>
               </div>
             ))}
           </div>
@@ -462,3 +465,4 @@ export default function AccountingView({
     </div>
   );
 }
+

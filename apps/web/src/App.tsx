@@ -1,3 +1,5 @@
+import { listRecords } from "./lib/listRecords";
+import { ListSearch, matchesRecord, RecordView } from "./RecordTools";
 import { WriteoffsView } from "./WriteoffsView";
 import PurchaseQuotes from "./PurchaseQuotes";
 import { GoodsDocumentsView } from "./GoodsDocumentsView";
@@ -480,6 +482,7 @@ function SettingsView({
   branches: Branch[];
   onRefresh: () => void;
 }) {
+  const [query,setQuery]=useState("");
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
@@ -579,8 +582,8 @@ function SettingsView({
             <p>{branches.length} locations in this company</p>
           </div>
         </div>
-        <div className="branch-list">
-          {branches.map((b) => (
+        <ListSearch value={query} onChange={setQuery} records={branches}/><div className="branch-list">
+          {branches.filter(b=>matchesRecord(b,query)).map((b) => (
             <div key={b.id}>
               <Building2 />
               <span>
@@ -589,7 +592,7 @@ function SettingsView({
                   {b.code} · {b.city || "City not set"}
                 </small>
               </span>
-              <em>{b.active ? "Active" : "Inactive"}</em>
+              <em>{b.active ? "Active" : "Inactive"}</em><span className="row-actions"><RecordView companyId={company.id} table="branches" id={b.id} onSaved={onRefresh}/></span>
 
             </div>
           ))}
@@ -691,16 +694,16 @@ function Dashboard({
   async function loadCompanyData() {
     if (!companyId || demo) return;
     const [b, a, s, roleResult] = await Promise.all([
-      supabase
+      listRecords(supabase
         .from("branches")
         .select("id,code,name,city,active")
         .eq("company_id", companyId)
-        .order("name"),
-      supabase
+        .order("name").order("id")),
+      listRecords(supabase
         .from("accounts")
         .select("id,code,name,type,active,system_account")
         .eq("company_id", companyId)
-        .order("code"),
+        .order("code").order("id")),
       supabase.rpc("get_dashboard_summary", { target_company: companyId }),
       supabase.rpc("get_my_company_role", { target_company: companyId }),
     ]);

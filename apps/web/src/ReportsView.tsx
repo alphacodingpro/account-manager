@@ -1,3 +1,4 @@
+import { ListSearch, matchesRecord } from "./RecordTools";
 import { useEffect, useState } from "react";
 import { BarChart3, Download, Printer } from "lucide-react";
 import { supabase } from "./lib/supabase";
@@ -12,6 +13,7 @@ const asOfReports: ReportName[] = ["Balance Sheet", "Receivable Aging", "Payable
 const reportNames: ReportName[] = ["Trial Balance", "Profit & Loss", "Balance Sheet", "Cash Flow", "Receivable Aging", "Payable Aging"];
 
 export default function ReportsView({ companyId }: { companyId: string }) {
+  const [query,setQuery]=useState("");
   const [report, setReport] = useState<ReportName>("Trial Balance");
   const [from, setFrom] = useState(yearStart);
   const [to, setTo] = useState(today);
@@ -49,7 +51,8 @@ export default function ReportsView({ companyId }: { companyId: string }) {
     <div className="panel-head"><div><h3>Financial reports</h3><p>Posted double-entry data only</p></div><div className="report-actions"><button onClick={exportReport} disabled={!rows.length || loading} title="Download Excel-compatible CSV"><Download size={15}/>Export CSV</button><button onClick={() => window.print()} disabled={!rows.length || loading} title="Print or save as PDF"><Printer size={15}/>Print / PDF</button></div></div>
     <div className="report-print-heading"><strong>CloudLedger PK</strong><h1>{report}</h1><p className="report-period">{period}</p></div>
     <div className="report-toolbar"><select value={report} onChange={(e) => setReport(e.target.value as ReportName)}>{reportNames.map((name) => <option key={name}>{name}</option>)}</select><label>From<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} disabled={asOfReports.includes(report)}/></label><label>To / as of<input type="date" value={to} onChange={(e) => setTo(e.target.value)}/></label><button className="primary" onClick={load} disabled={loading}>{loading ? "Loading…" : "Run report"}</button></div>
+    <ListSearch value={query} onChange={setQuery}/>{query&&<p className="notice">Search filters the screen only. CSV and print contain the complete report.</p>}
     {message && <p className="alert">{message}</p>}
-    {!rows.length ? <div className="mini-empty"><BarChart3/><p>{loading ? "Loading report…" : "No posted data for this report."}</p></div> : <div className="report-table" aria-label={`${report}, ${period}`}><div className="report-row data-heading" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(130px, 1fr))` }}>{columns.map((column) => <span key={column}>{column.replaceAll("_", " ")}</span>)}</div>{rows.map((row, index) => <div className="report-row" key={index} style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(130px, 1fr))` }}>{columns.map((column) => <span key={column}>{typeof row[column] === "number" || (column.includes("amount") || ["debit", "credit", "balance"].includes(column)) ? pkr.format(Number(row[column] ?? 0)) : String(row[column] ?? "—")}</span>)}</div>)}</div>}
+    {!rows.length ? <div className="mini-empty"><BarChart3/><p>{loading ? "Loading report…" : "No posted data for this report."}</p></div> : <div className="report-table" aria-label={`${report}, ${period}`}><div className="report-row data-heading" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(130px, 1fr))` }}>{columns.map((column) => <span key={column}>{column.replaceAll("_", " ")}</span>)}</div>{rows.map((row, index) => <div className={`report-row${matchesRecord(row,query)?"":" report-search-hidden"}`} key={index} style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(130px, 1fr))` }}>{columns.map((column) => <span key={column}>{typeof row[column] === "number" || (column.includes("amount") || ["debit", "credit", "balance"].includes(column)) ? pkr.format(Number(row[column] ?? 0)) : String(row[column] ?? "—")}</span>)}</div>)}</div>}
   </article></div>;
 }

@@ -1,3 +1,5 @@
+import { listRecords } from "./lib/listRecords";
+import { ListSearch, matchesRecord, RecordView } from "./RecordTools";
 import InventoryRevaluations from "./InventoryRevaluations";
 import { useEffect, useState } from "react";
 import { ArrowRightLeft, Package, Pencil, Plus, SlidersHorizontal, Trash2, X } from "lucide-react";
@@ -25,7 +27,9 @@ const pkr = new Intl.NumberFormat("en-PK", {
   currency: "PKR",
 });
 export default function InventoryView({ companyId, section = "products" }: { companyId: string; section?: "products" | "stock" | "adjustments" | "transfers" | "movements" }) {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [listQuery,setListQuery]=useState("");
+ useEffect(()=>setListQuery(""),[companyId,section]);
+ const [products, setProducts] = useState<Product[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
   const [stockBalances, setStockBalances] = useState<StockBalance[]>([]);
@@ -47,9 +51,9 @@ export default function InventoryView({ companyId, section = "products" }: { com
   });
   async function load() {
     const [productResult, warehouseResult, movementResult, balanceResult] = await Promise.all([
-      supabase.from("products").select("*").eq("company_id", companyId).order("name"),
+      listRecords(supabase.from("products").select("*").eq("company_id", companyId).order("name").order("id")),
       supabase.from("warehouses").select("id,name,branch_id").eq("company_id", companyId).eq("active", true).order("name"),
-      supabase.from("stock_movements").select("id,movement_type,movement_date,quantity,reference,products(name),warehouses(name)").eq("company_id", companyId).order("created_at", { ascending: false }).limit(12),
+      listRecords(supabase.from("stock_movements").select("id,movement_type,movement_date,quantity,reference,products(name),warehouses(name)").eq("company_id", companyId).order("created_at", { ascending: false }).order("id")),
       supabase.rpc("get_inventory_stock", { target_company: companyId }),
     ]);
     const error = productResult.error ?? warehouseResult.error ?? movementResult.error ?? balanceResult.error;
@@ -126,7 +130,7 @@ export default function InventoryView({ companyId, section = "products" }: { com
     setStockBusy(false);
   }
   return (
-    <div className="accounting-stack inventory-view">
+    <div className="accounting-stack inventory-view">{["products","stock","movements"].includes(section)&&<ListSearch value={listQuery} onChange={setListQuery} records={section==="products"?products:section==="stock"?stockBalances:movements}/>}
       {message && <p role="status" className={message.includes("success") ? "notice" : "alert"}>{message}</p>}
       {section === "products" && <article className="panel data-panel">
         <div className="panel-head">
@@ -247,7 +251,7 @@ export default function InventoryView({ companyId, section = "products" }: { com
               <span>Stock</span>
               <span>Actions</span>
             </div>
-            {products.map((p) => (
+            {products.filter(record=>matchesRecord(record,listQuery)).map((p) => (
               <div className="inventory-row" key={p.id}>
                 <span className="code">{p.sku}</span>
                 <span>
@@ -266,7 +270,7 @@ export default function InventoryView({ companyId, section = "products" }: { com
                 >
                   {p.is_service ? "—" : p.quantity_on_hand}
                 </span>
-                <span className="row-actions"><button title="Edit" onClick={() => edit(p)}><Pencil size={14}/></button><button className="danger" title="Delete" onClick={() => remove(p)}><Trash2 size={14}/></button></span>
+                <span className="row-actions"><RecordView companyId={companyId} table="products" id={p.id}/><button title="Edit" onClick={() => edit(p)}><Pencil size={14}/></button><button className="danger" title="Delete" onClick={() => remove(p)}><Trash2 size={14}/></button></span>
               </div>
             ))}
           </div>
@@ -276,7 +280,7 @@ export default function InventoryView({ companyId, section = "products" }: { com
         <div className="panel-head"><div><h3>Warehouse stock ledger</h3><p>Live quantity and weighted-average valuation</p></div><Package /></div>
         {stockBalances.length === 0 ? <div className="mini-empty"><Package/><p>No warehouse stock movements yet.</p></div> : <div className="inventory-table inventory-stock">
           <div className="inventory-row data-heading"><span>Warehouse</span><span>SKU</span><span>Item</span><span>Quantity</span><span>Average cost</span><span>Stock value</span><span></span></div>
-          {stockBalances.map((row) => <div className="inventory-row" key={`${row.warehouse_id}-${row.product_id}`}><span><b>{row.warehouse_name}</b></span><span className="code">{row.sku}</span><span>{row.product_name}</span><span>{row.quantity}</span><span>{pkr.format(row.average_cost)}</span><span><b>{pkr.format(row.stock_value)}</b></span><span></span></div>)}
+          {stockBalances.filter(record=>matchesRecord(record,listQuery)).map((row) => <div className="inventory-row" key={`${row.warehouse_id}-${row.product_id}`}><span><b>{row.warehouse_name}</b></span><span className="code">{row.sku}</span><span>{row.product_name}</span><span>{row.quantity}</span><span>{pkr.format(row.average_cost)}</span><span><b>{pkr.format(row.stock_value)}</b></span><span><RecordView companyId={companyId} table="products" id={row.product_id}/></span></div>)}
         </div>}
       </article>}
       {section === "adjustments" && <InventoryRevaluations key={companyId} companyId={companyId} products={products} warehouses={warehouses} onChanged={load}/>}
@@ -301,7 +305,7 @@ export default function InventoryView({ companyId, section = "products" }: { com
         {section === "transfers" && warehouses.length < 2 && <div className="mini-empty"><ArrowRightLeft/><p>At least two active warehouses are required for a stock transfer.</p></div>}
         {section === "movements" && <div className="inventory-table inventory-movements">
           <div className="inventory-row data-heading"><span>Date</span><span>Item</span><span>Warehouse</span><span>Movement</span><span>Quantity</span><span>Reference</span><span></span></div>
-          {movements.map((movement) => <div className="inventory-row" key={movement.id}><span>{new Date(movement.movement_date).toLocaleDateString("en-PK")}</span><span><b>{movement.products?.name ?? "Product"}</b></span><span>{movement.warehouses?.name ?? "Warehouse"}</span><span>{movement.movement_type.replaceAll("_", " ")}</span><span>{movement.quantity}</span><span>{movement.reference ?? "—"}</span><span></span></div>)}
+          {movements.filter(record=>matchesRecord(record,listQuery)).map(movement=><div className="inventory-row" key={movement.id}><span>{new Date(movement.movement_date).toLocaleDateString("en-PK")}</span><span><b>{movement.products?.name ?? "Product"}</b></span><span>{movement.warehouses?.name ?? "Warehouse"}</span><span>{movement.movement_type.replaceAll("_", " ")}</span><span>{movement.quantity}</span><span>{movement.reference ?? "—"}</span><span><RecordView companyId={companyId} table="stock_movements" id={movement.id}/></span></div>)}
         </div>}
       </article>}
     </div>

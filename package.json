@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "concurrently \"npm run dev -w @cloudledger/web\" \"npm run start:dev -w @cloudledger/api\"",
     "build": "npm run build -w @cloudledger/api && npm run build -w @cloudledger/web",
-    "test": "npm run test -w @cloudledger/api && node --test apps/web/tests/document-import.test.mjs && node scripts/test-aging-migration.mjs && node scripts/test-quotation-migration.mjs && node scripts/test-purchase-order-migration.mjs && node scripts/test-partial-purchase-receipts.mjs && node scripts/test-sales-order-migration.mjs && node scripts/test-sales-credit-note-migration.mjs && node scripts/test-purchase-debit-note-migration.mjs",
+    "test": "npm run test -w @cloudledger/api && node --test apps/web/tests/document-import.test.mjs && node scripts/test-aging-migration.mjs && node scripts/test-quotation-migration.mjs && node scripts/test-purchase-order-migration.mjs && node scripts/test-partial-purchase-receipts.mjs && node scripts/test-sales-order-migration.mjs && node scripts/test-sales-credit-note-migration.mjs && node scripts/test-purchase-debit-note-migration.mjs && node scripts/test-record-tools.mjs",
     "typecheck": "npm run typecheck -w @cloudledger/web && npm run typecheck -w @cloudledger/api",
     "test:db": "node scripts/test-accounting-database.mjs"
   },

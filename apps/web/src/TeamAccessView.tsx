@@ -1,3 +1,4 @@
+import { ListSearch, matchesRecord } from "./RecordTools";
 import { useEffect, useState } from "react";
 import { ShieldCheck, UserPlus, UserRoundCheck, X } from "lucide-react";
 import { supabase } from "./lib/supabase";
@@ -11,6 +12,7 @@ const inviteRoles: Exclude<Role, "owner">[] = ["admin", "accountant", "sales", "
 const roleLabel: Record<Role, string> = { owner: "Owner", admin: "Manager", accountant: "Accountant", sales: "Sales staff", purchases: "Purchase staff", inventory: "Inventory staff", payroll: "Payroll staff", viewer: "Read-only staff" };
 
 export default function TeamAccessView({ companyId }: { companyId: string }) {
+  const [query,setQuery]=useState("");
   const [isOwner, setIsOwner] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
@@ -61,7 +63,7 @@ export default function TeamAccessView({ companyId }: { companyId: string }) {
   }
 
   if (!isOwner) return <article className="panel wide access-summary"><ShieldCheck/><div><h3>Company access</h3><p>Only a company owner can invite members or change access roles.</p></div></article>;
-  return <article className="panel wide team-access">
+  return <article className="panel wide team-access"><ListSearch value={query} onChange={setQuery} records={[...members,...invitations]}/>
     <div className="panel-head"><div><h3>Team access</h3><p>Invite users and control company-level permissions</p></div><ShieldCheck className="access-icon"/></div>
     <form className="member-invite" onSubmit={invite}>
       <label>Email address<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="accountant@company.com" required/></label>
@@ -72,13 +74,13 @@ export default function TeamAccessView({ companyId }: { companyId: string }) {
     {message && <p className="form-message">{message}</p>}
     <div className="member-list">
       <div className="member-row member-heading"><span>Team member</span><span>Role</span><span>Status</span><span>Action</span></div>
-      {members.map((member) => <div className="member-row" key={member.user_id}>
+      {members.filter(record=>matchesRecord(record,query)).map((member) => <div className="member-row" key={member.user_id}>
         <span className="member-identity"><UserRoundCheck size={17}/><b>{member.full_name || member.email}</b><small>{member.full_name ? member.email : "CloudLedger user"}</small></span>
         <span><select value={member.role} onChange={(e) => patchMember(member.user_id, { role: e.target.value as Role })} disabled={busy}>{editableRoles.map((item) => <option key={item} value={item}>{roleLabel[item]}</option>)}</select></span>
         <span><label className="member-active"><input type="checkbox" checked={member.active} onChange={(e) => patchMember(member.user_id, { active: e.target.checked })} disabled={busy}/>{member.active ? "Active" : "Disabled"}</label></span>
         <span><button className="outline" onClick={() => save(member)} disabled={busy}>Save</button></span>
       </div>)}
     </div>
-    {invitations.length>0 && <div className="pending-invites"><h4>Pending invitations</h4>{invitations.map((invitation) => <div key={invitation.id}><span><b>{invitation.email}</b><small>{roleLabel[invitation.role]} · expires {new Date(invitation.expires_at).toLocaleDateString("en-PK")}</small></span><button title="Revoke invitation" onClick={() => revoke(invitation.id)} disabled={busy}><X size={15}/></button></div>)}</div>}
+    {invitations.length>0 && <div className="pending-invites"><h4>Pending invitations</h4>{invitations.filter(record=>matchesRecord(record,query)).map((invitation) => <div key={invitation.id}><span><b>{invitation.email}</b><small>{roleLabel[invitation.role]} · expires {new Date(invitation.expires_at).toLocaleDateString("en-PK")}</small></span><button title="Revoke invitation" onClick={() => revoke(invitation.id)} disabled={busy}><X size={15}/></button></div>)}</div>}
   </article>;
 }
