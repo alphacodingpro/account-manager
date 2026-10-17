@@ -1,0 +1,2 @@
+-- Payroll loan recovery ledger and reversal safety.
+-- Implementation will be validated in the PR before merge.
