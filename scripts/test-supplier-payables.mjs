@@ -1,0 +1,41 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const sql = readFileSync(new URL("../supabase/migrations/0056_supplier_payables.sql", import.meta.url), "utf8");
+assert.match(sql, /create or replace function public\.get_supplier_payables/);
+assert.match(sql, /not public\.is_company_member\(target_company\)/);
+assert.match(sql, /bill_date<=as_of/);
+assert.match(sql, /p\.status='posted' and p\.direction='payment' and p\.payment_date<=as_of/);
+assert.match(sql, /n\.status='posted' and n\.debit_date<=as_of/);
+assert.match(sql, /b\.status in \('posted','part_paid','paid'\)/);
+assert.match(sql, /group by d\.supplier_id/);
+assert.match(sql, /revoke all on function public\.get_supplier_payables\(uuid,date\) from public,anon/);
+assert.match(sql, /grant execute on function public\.get_supplier_payables\(uuid,date\) to authenticated/);
+console.log("Supplier payables migration safety checks passed.");
+
+// Functional test on a minimal schema: bills less payments and debit notes, per supplier id.
+import { PGlite } from "@electric-sql/pglite";
+const db = new PGlite();
+await db.exec(`create role anon; create role authenticated;
+create function public.is_company_member(c uuid) returns boolean language sql as $$ select coalesce(current_setting('test.member',true),'yes')='yes' and c='00000000-0000-0000-0000-000000000001'::uuid $$;
+create table public.purchase_bills(id uuid primary key default gen_random_uuid(),company_id uuid,supplier_id uuid,bill_date date,due_date date,total numeric,status text);
+create table public.payments(id uuid primary key default gen_random_uuid(),company_id uuid,purchase_bill_id uuid,amount numeric,status text,direction text,payment_date date);
+create table public.purchase_debit_notes(id uuid primary key default gen_random_uuid(),company_id uuid,bill_id uuid,total numeric,status text,debit_date date);`);
+await db.exec(sql);
+const C = "00000000-0000-0000-0000-000000000001", O = "00000000-0000-0000-0000-000000000009";
+const S1 = "10000000-0000-0000-0000-000000000001", S2 = "10000000-0000-0000-0000-000000000002", S3 = "10000000-0000-0000-0000-000000000003";
+const bill = async (c, s, total, due, status = "posted") => (await db.query("insert into public.purchase_bills(company_id,supplier_id,bill_date,due_date,total,status) values($1,$2,current_date-60,current_date+$4::int,$3,$5) returning id", [c, s, total, due, status])).rows[0].id;
+const b1 = await bill(C, S1, 1000, -30), b2 = await bill(C, S1, 500, 10), b3 = await bill(C, S2, 400, -5);
+await bill(C, S1, 9999, -5, "draft"); await bill(C, S1, 8888, -5, "void"); await bill(O, S3, 7777, -5);
+const pay = (b, amt, st = "posted", dir = "payment") => db.query("insert into public.payments(company_id,purchase_bill_id,amount,status,direction,payment_date) values($1,$2,$3,$4,$5,current_date)", [C, b, amt, st, dir]);
+await pay(b1, 300); await pay(b1, 5000, "void"); await pay(b1, 5000, "posted", "receipt"); await pay(b3, 400);
+await db.query("insert into public.purchase_debit_notes(company_id,bill_id,total,status,debit_date) values($1,$2,100,'posted',current_date),($1,$2,999,'draft',current_date)", [C, b1]);
+const rows = (await db.query("select * from public.get_supplier_payables($1)", [C])).rows;
+const by = Object.fromEntries(rows.map(r => [r.supplier_id, r]));
+assert.equal(rows.length, 1, "only suppliers with a balance are returned");
+assert.equal(Number(by[S1].total_due), 1100); assert.equal(Number(by[S1].overdue_amount), 600); assert.equal(by[S1].open_bills, 2);
+assert.equal(by[S2], undefined, "fully paid supplier is not listed");
+assert.equal((await db.query("select * from public.get_supplier_payables($1, current_date-90)", [C])).rows.length, 0, "as-of before the bills");
+await db.exec("set test.member='no'");
+await assert.rejects(db.query("select * from public.get_supplier_payables($1)", [C]), /Access denied/);
+console.log("Supplier payables functional checks passed.");

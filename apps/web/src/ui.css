@@ -161,3 +161,19 @@ p.alert{padding:13px 16px;border:1px solid #f3c4c4;border-radius:12px;background
 .contacts-list td:nth-child(3){min-width:200px}
 .contacts-list td:nth-child(4){white-space:nowrap}
 .contacts-table td:last-child>*:last-child{margin-right:0}
+
+/* ---------- Supplier payables ---------- */
+.payable-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:16px 0 0}
+.payable-summary>div{display:grid;gap:3px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,#fff,#f8fbfe)}
+.payable-summary small{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#6d8294}
+.payable-summary b{font-size:22px;letter-spacing:-.02em;color:#173248}
+.payable-summary span{font-size:12px;color:var(--muted)}
+.payable-summary>div.overdue{border-color:#f3c4c4;background:#fff7f7}.payable-summary>div.overdue b{color:#b3261e}
+.due-filter{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#3f5668;margin-left:auto;margin-right:16px;cursor:pointer}
+.invoice-list-toolbar:has(.due-filter){flex-wrap:wrap}
+.contacts-table th.num,.contacts-table td.num{text-align:right;white-space:nowrap}
+.payable-amount{display:block;font-size:14px;color:#173248}
+.payable-note{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+.payable-overdue{display:block;font-size:11px;font-weight:700;color:#b3261e;margin-top:2px}
+.payable-nil{color:#8aa0b1;font-size:13px}
+@media(max-width:700px){.payable-summary{grid-template-columns:1fr}.due-filter{margin-left:0}}

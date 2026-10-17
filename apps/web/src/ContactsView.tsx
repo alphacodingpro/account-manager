@@ -4,10 +4,12 @@ import { supabase } from "./lib/supabase";
 import Modal, { statusClass, msgClass } from "./Modal";
 
 type Contact = { id:string; name:string; email:string|null; phone:string|null; address:string|null; ntn:string|null; strn:string|null; active:boolean; kind:string };
+type Payable = { open:number; overdue:number; total:number };
+const pkr = new Intl.NumberFormat("en-PK",{style:"currency",currency:"PKR"});
 const empty = {name:"",email:"",phone:"",address:"",ntn:"",strn:""};
 export function ContactsView({companyId,kind}:{companyId:string;kind:"customer"|"supplier"}) {
   const [rows,setRows]=useState<Contact[]>([]), [query,setQuery]=useState(""), [message,setMessage]=useState("");
-  const [form,setForm]=useState(empty), [editing,setEditing]=useState(""), [open,setOpen]=useState(false), [busy,setBusy]=useState(false), [loading,setLoading]=useState(true);
+  const [form,setForm]=useState(empty), [editing,setEditing]=useState(""), [open,setOpen]=useState(false), [busy,setBusy]=useState(false), [loading,setLoading]=useState(true), [payables,setPayables]=useState<Record<string,Payable>>({}), [onlyDue,setOnlyDue]=useState(false);
   const title=kind==="customer" ? "Customers" : "Suppliers";
   async function load(){
     setLoading(true);
@@ -17,7 +19,13 @@ export function ContactsView({companyId,kind}:{companyId:string;kind:"customer"|
       if(r.error){setMessage(r.error.message);setLoading(false);return;}
       all.push(...(r.data??[])); if((r.data??[]).length<500)break;
     }
-    setRows(all);setLoading(false);
+    setRows(all);
+    if(kind==="supplier"){
+      const p=await supabase.rpc("get_supplier_payables",{target_company:companyId});
+      if(p.error)setMessage(p.error.message);
+      else setPayables(Object.fromEntries((p.data??[]).map((x:{supplier_id:string;open_bills:number;overdue_amount:string|number;total_due:string|number})=>[x.supplier_id,{open:Number(x.open_bills),overdue:Number(x.overdue_amount),total:Number(x.total_due)}])));
+    }else setPayables({});
+    setLoading(false);
   }
   useEffect(()=>{void load();},[companyId,kind]);
   async function save(e:React.FormEvent){
@@ -34,11 +42,15 @@ export function ContactsView({companyId,kind}:{companyId:string;kind:"customer"|
     if(r.error)setMessage(r.error.message);else{await load();setMessage(row.active?"Contact deactivated. Existing documents retained.":"Contact reactivated.");}setBusy(false);
   }
   const terms=query.toLowerCase().trim().split(/\s+/).filter(Boolean);
-  const filtered=rows.filter(r=>terms.every(t=>[r.name,r.email,r.phone,r.address,r.ntn,r.strn,r.active?"active":"inactive"].join(" ").toLowerCase().includes(t)));
+  const showPayable=kind==="supplier";
+  const due=Object.values(payables);
+  const totalPayable=due.reduce((n,p)=>n+p.total,0), totalOverdue=due.reduce((n,p)=>n+p.overdue,0);
+  const filtered=rows.filter(r=>(!onlyDue||(payables[r.id]?.total??0)>0)&&terms.every(t=>[r.name,r.email,r.phone,r.address,r.ntn,r.strn,r.active?"active":"inactive"].join(" ").toLowerCase().includes(t)));
   return <article className="panel data-panel"><div className="panel-head"><div><h3>{title}</h3><p>Contact details and Pakistan tax registration</p></div><button className="primary small-button" onClick={()=>{setEditing("");setForm(empty);setOpen(true);setMessage("");}}>New {kind}</button></div>
     {message&&<p className={msgClass(message)} role="status">{message}</p>}
+    {showPayable&&!loading&&<div className="payable-summary"><div><small>Total payable</small><b>{pkr.format(totalPayable)}</b><span>to {due.length} supplier{due.length===1?"":"s"}</span></div><div className={totalOverdue>0?"overdue":""}><small>Overdue</small><b>{pkr.format(totalOverdue)}</b><span>{totalOverdue>0?"past due date":"nothing overdue"}</span></div><div><small>Open bills</small><b>{due.reduce((n,p)=>n+p.open,0)}</b><span>posted, not fully paid</span></div></div>}
     {open&&<Modal onClose={()=>setOpen(false)} title={editing?`Edit ${kind}`:`New ${kind}`} size="md" subtitle={"Contact details and Pakistan tax registration (NTN / STRN)"} message={message}><form className="customer-form" onSubmit={save}>{Object.entries(form).map(([key,value])=><label key={key} className={key==="address"?"wide":undefined}>{({name:"Name",email:"Email",phone:"Phone",address:"Address",ntn:"NTN",strn:"STRN"} as Record<string,string>)[key]}<input value={value} type={key==="email"?"email":"text"} required={key==="name"} onChange={e=>setForm({...form,[key]:e.target.value})}/></label>)}<div className="form-actions wide"><button type="button" className="outline" onClick={()=>setOpen(false)}>Cancel</button><button className="primary" disabled={busy}>{busy?"Saving…":"Save"}</button></div></form></Modal>}
-    <div className="invoice-list-toolbar"><label className="invoice-list-search"><input type="search" aria-label={`Search ${title}`} placeholder={`Search ${title.toLowerCase()}…`} value={query} onChange={e=>setQuery(e.target.value)}/></label><small>{filtered.length} of {rows.length}</small></div>
-    {loading?<p>Loading contacts…</p>:<div className="account-table"><table className="contacts-table contacts-list"><thead><tr><th>Name</th><th>Phone / Email</th><th>Address</th><th>NTN / STRN</th><th>Status</th><th>Actions</th></tr></thead><tbody>{filtered.map(row=><tr key={row.id}><td>{row.name}</td><td>{row.phone||"—"}<br/>{row.email}</td><td>{row.address||"—"}</td><td>{row.ntn||"—"}<br/>{row.strn}</td><td><span className={statusClass(row.active?"Active":"Inactive")}>{row.active?"Active":"Inactive"}</span></td><td><RecordView companyId={companyId} table="contacts" id={row.id}/> <button className="outline" disabled={busy} onClick={()=>{setEditing(row.id);setForm({name:row.name,email:row.email||"",phone:row.phone||"",address:row.address||"",ntn:row.ntn||"",strn:row.strn||""});setOpen(true);}}>Edit</button> <button className={row.active?"outline danger-outline":"outline"} disabled={busy} onClick={()=>void toggle(row)}>{row.active?"Deactivate":"Reactivate"}</button></td></tr>)}</tbody></table>{!filtered.length&&<p className="mini-empty">No matching {title.toLowerCase()}.</p>}</div>}
+    <div className="invoice-list-toolbar"><label className="invoice-list-search"><input type="search" aria-label={`Search ${title}`} placeholder={`Search ${title.toLowerCase()}…`} value={query} onChange={e=>setQuery(e.target.value)}/></label>{showPayable&&<label className="due-filter"><input type="checkbox" checked={onlyDue} onChange={e=>setOnlyDue(e.target.checked)}/> Only suppliers with balance due</label>}<small>{filtered.length} of {rows.length}</small></div>
+    {loading?<p>Loading contacts…</p>:<div className="account-table"><table className="contacts-table contacts-list"><thead><tr><th>Name</th><th>Phone / Email</th><th>Address</th><th>NTN / STRN</th>{showPayable&&<th className="num">Payable</th>}<th>Status</th><th>Actions</th></tr></thead><tbody>{filtered.map(row=><tr key={row.id}><td>{row.name}</td><td>{row.phone||"—"}<br/>{row.email}</td><td>{row.address||"—"}</td><td>{row.ntn||"—"}<br/>{row.strn}</td>{showPayable&&<td className="num">{(payables[row.id]?.total??0)>0?<><b className="payable-amount">{pkr.format(payables[row.id].total)}</b><small className="payable-note">{payables[row.id].open} open bill{payables[row.id].open===1?"":"s"}</small>{payables[row.id].overdue>0&&<small className="payable-overdue">Overdue {pkr.format(payables[row.id].overdue)}</small>}</>:<span className="payable-nil">Nil</span>}</td>}<td><span className={statusClass(row.active?"Active":"Inactive")}>{row.active?"Active":"Inactive"}</span></td><td><RecordView companyId={companyId} table="contacts" id={row.id}/> <button className="outline" disabled={busy} onClick={()=>{setEditing(row.id);setForm({name:row.name,email:row.email||"",phone:row.phone||"",address:row.address||"",ntn:row.ntn||"",strn:row.strn||""});setOpen(true);}}>Edit</button> <button className={row.active?"outline danger-outline":"outline"} disabled={busy} onClick={()=>void toggle(row)}>{row.active?"Deactivate":"Reactivate"}</button></td></tr>)}</tbody></table>{!filtered.length&&<p className="mini-empty">No matching {title.toLowerCase()}.</p>}</div>}
   </article>;
 }
