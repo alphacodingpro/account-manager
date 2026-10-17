@@ -4,6 +4,7 @@ import { BarChart3, Download, Printer } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { downloadCsv, reportFilename, reportToCsv, type ExportRow } from "./lib/reportExport";
 import "./ReportsView.css";
+import { msgClass } from "./Modal";
 
 type ReportName = "Trial Balance" | "Profit & Loss" | "Balance Sheet" | "Cash Flow" | "Receivable Aging" | "Payable Aging";
 const pkr = new Intl.NumberFormat("en-PK", { style: "currency", currency: "PKR" });
@@ -52,7 +53,7 @@ export default function ReportsView({ companyId }: { companyId: string }) {
     <div className="report-print-heading"><strong>CloudLedger PK</strong><h1>{report}</h1><p className="report-period">{period}</p></div>
     <div className="report-toolbar"><select value={report} onChange={(e) => setReport(e.target.value as ReportName)}>{reportNames.map((name) => <option key={name}>{name}</option>)}</select><label>From<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} disabled={asOfReports.includes(report)}/></label><label>To / as of<input type="date" value={to} onChange={(e) => setTo(e.target.value)}/></label><button className="primary" onClick={load} disabled={loading}>{loading ? "Loading…" : "Run report"}</button></div>
     <ListSearch value={query} onChange={setQuery}/>{query&&<p className="notice">Search filters the screen only. CSV and print contain the complete report.</p>}
-    {message && <p className="alert">{message}</p>}
+    {message && <p className={msgClass(message)}>{message}</p>}
     {!rows.length ? <div className="mini-empty"><BarChart3/><p>{loading ? "Loading report…" : "No posted data for this report."}</p></div> : <div className="report-table" aria-label={`${report}, ${period}`}><div className="report-row data-heading" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(130px, 1fr))` }}>{columns.map((column) => <span key={column}>{column.replaceAll("_", " ")}</span>)}</div>{rows.map((row, index) => <div className={`report-row${matchesRecord(row,query)?"":" report-search-hidden"}`} key={index} style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(130px, 1fr))` }}>{columns.map((column) => <span key={column}>{typeof row[column] === "number" || (column.includes("amount") || ["debit", "credit", "balance"].includes(column)) ? pkr.format(Number(row[column] ?? 0)) : String(row[column] ?? "—")}</span>)}</div>)}</div>}
   </article></div>;
 }

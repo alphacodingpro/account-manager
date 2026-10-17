@@ -42,7 +42,14 @@ function unlockScroll() {
 const FOCUSABLE = 'input:not([type="hidden"]):not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
 const FIELDS = 'input:not([type="hidden"]):not([disabled]):not([readonly]):not([type="checkbox"]), select:not([disabled]), textarea:not([disabled])';
 
-const SUCCESS = /(success|saved|posted|created|approved|deleted|converted|recorded|submitted)/i;
+const FAILURE = /(error|fail|cannot|can't|could not|couldn't|not allowed|not saved|not found|invalid|must |required|denied|unable|violat|already|exceed|insufficient|unbalanced|select |enter |only )/i;
+const SUCCESS = /(success|saved|posted|created|added|approved|deleted|removed|converted|recorded|submitted|updated|reversed|reactivated|deactivated|prepared|activated|received|reimbursed|imported|sent)/i;
+
+/** Green "notice" for confirmations, red "alert" for problems. */
+export function msgClass(message: unknown): string {
+  const m = String(message ?? "");
+  return SUCCESS.test(m) && !FAILURE.test(m) ? "notice" : "alert";
+}
 
 export default function Modal({ open = true, onClose, title, subtitle, size = "md", message, closeOnBackdrop = false, children }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -98,7 +105,7 @@ export default function Modal({ open = true, onClose, title, subtitle, size = "m
           <button type="button" className="modal-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
         </header>
         <div className="modal-body" ref={bodyRef}>
-          {message ? <p className={SUCCESS.test(message) ? "notice" : "alert"} role="alert">{message}</p> : null}
+          {message ? <p className={msgClass(message)} role="alert">{message}</p> : null}
           {children}
         </div>
       </div>

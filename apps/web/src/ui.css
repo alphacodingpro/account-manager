@@ -147,3 +147,17 @@ p.alert,p.notice{margin:14px 0 0;line-height:1.5}
 @media(max-width:640px){.modal-body .document-fields{grid-template-columns:1fr}}
 .modal-body .goods-draft-line.data-heading{padding:8px 4px;border:0;border-radius:8px;text-transform:uppercase;font-weight:800;margin-bottom:6px}
 .modal-body .payroll-run-form{display:grid;grid-template-columns:1fr;gap:16px;margin:0;padding:0;background:none;border:0;border-radius:0}
+
+/* ---------- Message colours: green for success, red for problems ---------- */
+p.notice{padding:13px 16px;border:1px solid #bfe9d6;border-radius:12px;background:#ecfaf4;color:#0b6b4b;font-weight:600}
+p.alert{padding:13px 16px;border:1px solid #f3c4c4;border-radius:12px;background:#fff0f0;color:#a52a2a;font-weight:600}
+
+/* ---------- Row action buttons: one tidy line, same size ---------- */
+.contacts-table th:last-child,.contacts-table td:last-child{white-space:nowrap}
+.contacts-table td .outline,.contacts-table td .outline.small-button,.contacts-table td .record-action{display:inline-flex;align-items:center;justify-content:center;min-height:32px;height:32px;padding:0 14px;margin:0 6px 0 0;font-size:12.5px;font-weight:700;border-radius:9px;vertical-align:middle}
+.contacts-table td .outline.danger-outline,.danger-outline{color:#c64747;border-color:#f0caca}
+.contacts-table td .outline.danger-outline:hover:not(:disabled),.danger-outline:hover:not(:disabled){background:#fff4f4;border-color:#e6a9a9}
+.contacts-list td:nth-child(2){min-width:230px;overflow-wrap:break-word}
+.contacts-list td:nth-child(3){min-width:200px}
+.contacts-list td:nth-child(4){white-space:nowrap}
+.contacts-table td:last-child>*:last-child{margin-right:0}

@@ -46,7 +46,7 @@ import PayrollView from "./PayrollView";
 import ReportsView from "./ReportsView";
 import BankingView from "./BankingView";
 import TeamAccessView from "./TeamAccessView";
-import Modal, { statusClass } from "./Modal";
+import Modal, { statusClass, msgClass } from "./Modal";
 
 type Company = {
   id: string;
@@ -550,7 +550,7 @@ function SettingsView({
           </div>
           <button className="primary small-button" onClick={() => { setMessage(""); setBranchOpen(true); }}><Plus size={16} /> New branch</button>
         </div>
-        {message && <p className={/success/i.test(message) ? "notice" : "alert"}>{message}</p>}
+        {message && <p className={msgClass(message)}>{message}</p>}
         {branchOpen && <Modal onClose={() => setBranchOpen(false)} title="New branch" size="sm" subtitle="Create a branch-specific accounting location." message={message}><form className="branch-form" onSubmit={addBranch}>
           <label>
             Branch code
