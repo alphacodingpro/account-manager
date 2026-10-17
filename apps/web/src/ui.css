@@ -177,3 +177,7 @@ p.alert{padding:13px 16px;border:1px solid #f3c4c4;border-radius:12px;background
 .payable-overdue{display:block;font-size:11px;font-weight:700;color:#b3261e;margin-top:2px}
 .payable-nil{color:#8aa0b1;font-size:13px}
 @media(max-width:700px){.payable-summary{grid-template-columns:1fr}.due-filter{margin-left:0}}
+
+/* Sidebar: planned (not yet built) items are visibly quieter than working ones */
+.sales-submenu button.is-planned{opacity:.62}
+.sales-submenu button.is-planned:hover,.sales-submenu button.is-planned.active{opacity:1}

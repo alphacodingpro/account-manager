@@ -123,13 +123,25 @@ type ViewName =
   | "History";
 const plannedModules: Partial<Record<ViewName, string[]>> = {
   Sales: ["Customers", "Late Payment Fees", "Delivery Notes", "Billable Time", "Withholding Tax Receipts"],
-  Purchases: ["Suppliers", "Purchase Quotes", "Goods Receipts"],
-  Banking: ["Inter Account Transfers", "Expense Claims"],
+  Purchases: ["Suppliers", "Purchase Quotes", "Goods Receipts", "Expense Claims"],
+  Banking: ["Inter Account Transfers"],
   Inventory: ["Inventory Write-offs", "Production Orders"],
   Payroll: ["Payslips"],
   Settings: ["Customize"],
-  Accounting: ["Projects", "Investments", "Fixed Assets", "Depreciation Entries", "Intangible Assets", "Amortization Entries", "Capital Accounts", "Special Accounts", "Folders"],
+  Accounting: ["Fixed Assets", "Depreciation Entries", "Intangible Assets", "Amortization Entries", "Investments", "Capital Accounts", "Special Accounts", "Projects", "Folders"],
 };
+// Sidebar order follows the accounting workflow of each category. "s:" = page section, "m:" = module page, "j:" = journal page.
+const sidebarOrder: Record<string, string[]> = {
+  Sales: ["m:Customers", "s:quotations", "s:orders", "m:Delivery Notes", "s:invoices", "s:returns", "m:Late Payment Fees", "s:history", "m:Billable Time", "m:Withholding Tax Receipts"],
+  Purchases: ["m:Suppliers", "m:Purchase Quotes", "s:orders", "m:Goods Receipts", "s:bills", "s:returns", "m:Expense Claims"],
+  Banking: ["s:accounts", "s:receipts", "s:payments", "m:Inter Account Transfers", "s:transactions", "s:reconciliation"],
+  Inventory: ["s:products", "s:stock", "s:adjustments", "s:transfers", "m:Inventory Write-offs", "s:movements", "m:Production Orders"],
+  Payroll: ["s:employees", "s:attendance", "s:leave", "s:runs", "m:Payslips"],
+  Accounting: ["j:journal", "m:Fixed Assets", "m:Depreciation Entries", "m:Intangible Assets", "m:Amortization Entries", "m:Investments", "m:Capital Accounts", "m:Special Accounts", "m:Projects", "m:Folders"],
+  Settings: ["s:company", "s:branches", "s:team", "m:Customize"],
+};
+const liveModules = ["Customers", "Suppliers", "Inter Account Transfers", "Expense Claims", "Payslips", "Late Payment Fees", "Delivery Notes", "Goods Receipts", "Purchase Quotes", "Inventory Write-offs", "Customize"];
+type SidebarItem = { id: string; label: string; kind: "section" | "module" | "journal"; key: string; planned?: boolean; fixed?: boolean };
 
 type AccessRole = "owner" | "admin" | "accountant" | "sales" | "purchases" | "inventory" | "payroll" | "viewer" | "custom";
 const money = new Intl.NumberFormat("en-PK", {
@@ -139,12 +151,12 @@ const money = new Intl.NumberFormat("en-PK", {
 });
 const nav: [ViewName, typeof LayoutDashboard][] = [
   ["Overview", LayoutDashboard],
-  ["Accounting", WalletCards],
   ["Sales", ReceiptText],
   ["Purchases", ShoppingCart],
   ["Banking", Landmark],
   ["Inventory", Package],
   ["Payroll", Users],
+  ["Accounting", WalletCards],
   ["Reports", BarChart3],
   ["Settings", Settings],
   ["History", FileText],
@@ -632,6 +644,7 @@ function Dashboard({
   const [bankingExpanded, setBankingExpanded] = useState(false);
   const [bankingSection, setBankingSection] = useState<"accounts" | "transactions" | "receipts" | "payments" | "reconciliation">("transactions");
   const [salesExpanded, setSalesExpanded] = useState(false);
+  const [accountingExpanded, setAccountingExpanded] = useState(false);
   const [purchasesExpanded, setPurchasesExpanded] = useState(false);
   const [purchasesSection, setPurchasesSection] = useState<"bills" | "orders" | "returns">("bills");
   const [salesSection, setSalesSection] = useState<"invoices" | "quotations" | "orders" | "returns" | "history">("invoices");
@@ -651,10 +664,27 @@ function Dashboard({
   const [sidebarPreferences, setSidebarPreferences] = useState<{key:string;hidden:string[]}|null>(null);
   const sidebarHidden = useMemo(() => sidebarPreferences?.key === sidebarStorageKey ? sidebarPreferences.hidden : readSidebarPreferences(sidebarStorageKey), [sidebarStorageKey, sidebarPreferences]);
   const allowedNav = nav.filter(([name]) => accessRole !== "sales" || ["Overview", "Sales", "Reports"].includes(name)).filter(([name]) => accessRole !== "purchases" || ["Overview", "Purchases", "Reports"].includes(name)).filter(([name]) => accessRole !== "inventory" || ["Overview", "Inventory", "Reports"].includes(name)).filter(([name]) => accessRole !== "payroll" || ["Overview", "Payroll", "Reports"].includes(name)).filter(([name]) => accessRole !== "viewer" || ["Overview", "Reports"].includes(name));
-  const sidebarGroups: SidebarGroup[] = allowedNav.map(([name]) => ({id:name,label:name,items:[
-    ...(name in sidebarSections ? sidebarSections[name as keyof typeof sidebarSections].map(([section,label])=>({id:sidebarItemId(name,section),label})) : name === "Accounting" ? [{id:sidebarItemId(name,"journal"),label:"Journal Entries & Chart of Accounts"}] : []),
-    ...(plannedModules[name] ?? []).filter(label=>label!=="Customize").map(label=>({id:sidebarItemId(name,`planned:${label}`),label})),
-  ]}));
+  const groupItems = (name: string): SidebarItem[] => (sidebarOrder[name] ?? []).flatMap((token): SidebarItem[] => {
+    const kind = token.slice(0, 1), key = token.slice(2);
+    if (kind === "s") {
+      const label = ((sidebarSections as Record<string, readonly (readonly [string, string])[]>)[name] ?? []).find(([section]) => section === key)?.[1];
+      return label ? [{ id: sidebarItemId(name, key), label, kind: "section", key }] : [];
+    }
+    if (kind === "j") return [{ id: sidebarItemId(name, "journal"), label: "Chart of Accounts & Journals", kind: "journal", key }];
+    if (name === "Purchases" && key === "Expense Claims" && accessRole === "purchases") return [];
+    return [{ id: sidebarItemId(name, `planned:${key}`), label: key === "Customize" ? "Customize sidebar" : key, kind: "module", key, planned: !liveModules.includes(key), fixed: key === "Customize" }];
+  });
+  const sidebarGroups: SidebarGroup[] = allowedNav.map(([name]) => ({ id: name, label: name, items: groupItems(name).filter((item) => !item.fixed).map(({ id, label }) => ({ id, label })) }));
+  const groupExpanded: Record<string, boolean> = { Sales: salesExpanded, Purchases: purchasesExpanded, Banking: bankingExpanded, Inventory: inventoryExpanded, Payroll: payrollExpanded, Accounting: accountingExpanded, Settings: settingsExpanded };
+  const toggleGroup = (name: string, force?: boolean) => {
+    const set = ({ Sales: setSalesExpanded, Purchases: setPurchasesExpanded, Banking: setBankingExpanded, Inventory: setInventoryExpanded, Payroll: setPayrollExpanded, Accounting: setAccountingExpanded, Settings: setSettingsExpanded } as Record<string, (fn: (open: boolean) => boolean) => void>)[name];
+    set?.((open) => force ?? !open);
+  };
+  const currentSection: Record<string, string> = { Sales: salesSection, Purchases: purchasesSection, Banking: bankingSection, Inventory: inventorySection, Payroll: payrollSection, Settings: settingsSection };
+  const openSection = (name: string, section: string) => {
+    const setters: Record<string, (value: never) => void> = { Sales: setSalesSection, Purchases: setPurchasesSection, Banking: setBankingSection, Inventory: setInventorySection, Payroll: setPayrollSection, Settings: setSettingsSection };
+    setters[name]?.(section as never);
+  };
   useEffect(() => {
     const refresh = (event: StorageEvent) => {if(event.key === sidebarStorageKey || event.key === null) setSidebarPreferences({key:sidebarStorageKey,hidden:readSidebarPreferences(sidebarStorageKey)});};
     window.addEventListener("storage",refresh);return()=>window.removeEventListener("storage",refresh);
@@ -807,58 +837,43 @@ function Dashboard({
           </button>
         )}
         <nav>
-          {allowedNav.filter(([name]) => name === "Settings" ? !sidebarHidden.includes(name) : sidebarGroupVisible(sidebarHidden, sidebarGroups.find(group => group.id === name)!)).map(([name, Icon]) => (
-            <div key={name}>
-            <button
-              className={view === name ? "active" : ""}
-              aria-expanded={name === "Sales" ? salesExpanded : name === "Purchases" ? purchasesExpanded : name === "Banking" ? bankingExpanded : name === "Inventory" ? inventoryExpanded : name === "Payroll" ? payrollExpanded : name === "Settings" ? settingsExpanded : undefined}
-              aria-controls={name === "Sales" ? "sales-submenu" : name === "Purchases" ? "purchases-submenu" : name === "Banking" ? "banking-submenu" : name === "Inventory" ? "inventory-submenu" : name === "Payroll" ? "payroll-submenu" : name === "Settings" ? "settings-submenu" : undefined}
-              onClick={() => {
-                setPlannedModule("");
-                if (name === "Sales") { setSalesExpanded((open) => !open); return; }
-                if (name === "Purchases") { setPurchasesExpanded((open) => !open); return; }
-                if (name === "Banking") { setBankingExpanded((open) => !open); return; }
-                if (name === "Inventory") { setInventoryExpanded((open) => !open); return; }
-                if (name === "Payroll") { setPayrollExpanded((open) => !open); return; }
-                if (name === "Settings") { setSettingsExpanded((open) => !open); return; }
-                setView(name);
-                setMenu(false);
-              }}
-              key={name}
-            >
-              <Icon size={19} />
-              {name}
-              {name === "Settings" && <ChevronDown size={15} style={{marginLeft:"auto",transform:settingsExpanded ? "rotate(180deg)" : undefined}}/>}
-              {name === "Payroll" && <ChevronDown size={15} style={{marginLeft:"auto",transform:payrollExpanded ? "rotate(180deg)" : undefined}}/>}
-              {name === "Inventory" && <ChevronDown size={15} style={{marginLeft:"auto",transform:inventoryExpanded ? "rotate(180deg)" : undefined}}/>}
-              {name === "Banking" && <ChevronDown size={15} style={{ marginLeft: "auto", transform: bankingExpanded ? "rotate(180deg)" : undefined }} />}
-              {name === "Sales" && <ChevronDown size={15} style={{ marginLeft: "auto", transform: salesExpanded ? "rotate(180deg)" : undefined }} />}
-              {name === "Purchases" && <ChevronDown size={15} style={{ marginLeft: "auto", transform: purchasesExpanded ? "rotate(180deg)" : undefined }} />}
-            </button>
-            {name === "Sales" && salesExpanded && <div id="sales-submenu" className="sales-submenu">
-              {(sidebarSections.Sales).filter(([section])=>!sidebarHidden.includes(sidebarItemId("Sales",section))).map(([section, label]) => <button key={section} className={view === "Sales" && salesSection === section ? "active" : ""} aria-current={view === "Sales" && salesSection === section ? "page" : undefined} onClick={() => { setPlannedModule(""); setSalesSection(section); setView("Sales"); setMenu(false); }}>{label}</button>)}
-            </div>}
-            {name === "Purchases" && purchasesExpanded && <div id="purchases-submenu" className="sales-submenu">
-              {(sidebarSections.Purchases).filter(([section])=>!sidebarHidden.includes(sidebarItemId("Purchases",section))).map(([section, label]) => <button key={section} className={view === "Purchases" && purchasesSection === section ? "active" : ""} aria-current={view === "Purchases" && purchasesSection === section ? "page" : undefined} onClick={() => { setPlannedModule(""); setPurchasesSection(section); setView("Purchases"); setMenu(false); }}>{label}</button>)}
-            </div>}
-            {name === "Banking" && bankingExpanded && <div id="banking-submenu" className="sales-submenu">
-              {(sidebarSections.Banking).filter(([section])=>!sidebarHidden.includes(sidebarItemId("Banking",section))).map(([section, label]) => <button key={section} className={view === "Banking" && bankingSection === section ? "active" : ""} aria-current={view === "Banking" && bankingSection === section ? "page" : undefined} onClick={() => { setPlannedModule(""); setBankingSection(section); setView("Banking"); setMenu(false); }}>{label}</button>)}
-            </div>}
-            {name === "Inventory" && inventoryExpanded && <div id="inventory-submenu" className="sales-submenu">
-              {(sidebarSections.Inventory).filter(([section])=>!sidebarHidden.includes(sidebarItemId("Inventory",section))).map(([section,label]) => <button key={section} className={view === "Inventory" && inventorySection === section ? "active" : ""} aria-current={view === "Inventory" && inventorySection === section ? "page" : undefined} onClick={() => {setPlannedModule("");setInventorySection(section);setView("Inventory");setMenu(false);}}>{label}</button>)}
-            </div>}
-            {name === "Payroll" && payrollExpanded && <div id="payroll-submenu" className="sales-submenu">
-              {(sidebarSections.Payroll).filter(([section])=>!sidebarHidden.includes(sidebarItemId("Payroll",section))).map(([section,label]) => <button key={section} className={view === "Payroll" && payrollSection === section ? "active" : ""} aria-current={view === "Payroll" && payrollSection === section ? "page" : undefined} onClick={() => {setPlannedModule("");setPayrollSection(section);setView("Payroll");setMenu(false);}}>{label}</button>)}
-            </div>}
-            {name === "Settings" && settingsExpanded && <div id="settings-submenu" className="sales-submenu">
-              {(sidebarSections.Settings).filter(([section])=>!sidebarHidden.includes(sidebarItemId("Settings",section))).map(([section,label]) => <button key={section} className={view === "Settings" && settingsSection === section ? "active" : ""} aria-current={view === "Settings" && settingsSection === section ? "page" : undefined} onClick={() => {setPlannedModule("");setSettingsSection(section);setView("Settings");setMenu(false);}}>{label}</button>)}
-            </div>}
-            {name === "Accounting" && view === "Accounting" && !sidebarHidden.includes(sidebarItemId("Accounting","journal")) && <div className="sales-submenu"><button className={!plannedModule ? "active" : ""} onClick={() => {setPlannedModule("");setMenu(false);}}>Journal Entries & Chart of Accounts</button></div>}
-            {plannedModules[name] && ((name === "Sales" && salesExpanded) || (name === "Purchases" && purchasesExpanded) || (name === "Banking" && bankingExpanded) || (name === "Inventory" && inventoryExpanded) || (name === "Payroll" && payrollExpanded) || (name === "Settings" && settingsExpanded) || (name === "Accounting" && view === "Accounting")) && <div className="sales-submenu planned-submenu">
-              {plannedModules[name]?.filter(label=>label==="Customize"||!sidebarHidden.includes(sidebarItemId(name,`planned:${label}`))).map(label => <button key={label} className={view === name && plannedModule === label ? "active" : ""} aria-current={view === name && plannedModule === label ? "page" : undefined} onClick={() => {setView(name);setPlannedModule(label);setMenu(false);}}><span>{label}</span>{!["Customers","Suppliers","Inter Account Transfers","Expense Claims","Payslips","Late Payment Fees","Delivery Notes","Goods Receipts","Purchase Quotes","Inventory Write-offs","Customize"].includes(label) && <small>Planned</small>}</button>)}
-            </div>}
-            </div>
-          ))}
+          {allowedNav.filter(([name]) => name === "Settings" ? !sidebarHidden.includes(name) : sidebarGroupVisible(sidebarHidden, sidebarGroups.find(group => group.id === name)!)).map(([name, Icon]) => {
+            const all = groupItems(name);
+            const items = all.filter((item) => item.fixed || !sidebarHidden.includes(item.id));
+            const hasMenu = all.length > 0;
+            const open = hasMenu && groupExpanded[name];
+            const submenuId = `${name.toLowerCase()}-submenu`;
+            const groupActive = view === name && (!hasMenu || !open);
+            return (
+              <div key={name}>
+                <button
+                  className={groupActive ? "active" : ""}
+                  aria-expanded={hasMenu ? !!open : undefined}
+                  aria-controls={hasMenu ? submenuId : undefined}
+                  onClick={() => {
+                    if (hasMenu) { toggleGroup(name); return; }
+                    setPlannedModule("");
+                    setView(name);
+                    setMenu(false);
+                  }}
+                >
+                  <Icon size={19} />
+                  {name}
+                  {hasMenu && <ChevronDown size={15} style={{ marginLeft: "auto", transform: open ? "rotate(180deg)" : undefined }} />}
+                </button>
+                {open && <div id={submenuId} className="sales-submenu planned-submenu">
+                  {items.map((item) => {
+                    const active = view === name && (item.kind === "module" ? plannedModule === item.key : !plannedModule && (item.kind === "journal" || currentSection[name] === item.key));
+                    return <button key={item.id} className={`${active ? "active" : ""}${item.planned ? " is-planned" : ""}`} aria-current={active ? "page" : undefined} onClick={() => {
+                      if (item.kind === "module") { setView(name as ViewName); setPlannedModule(item.key); }
+                      else { setPlannedModule(""); if (item.kind === "section") openSection(name, item.key); setView(name as ViewName); }
+                      setMenu(false);
+                    }}><span>{item.label}</span>{item.planned && <small>Planned</small>}</button>;
+                  })}
+                </div>}
+              </div>
+            );
+          })}
         </nav>
         <button className="sidebar-customize-button" onClick={()=>{setPlannedModule("Customize");setMenu(false);}}><Settings size={16}/> Customize sidebar</button>
         <div className="user">
@@ -924,7 +939,7 @@ function Dashboard({
                 {["Delivery Notes","Goods Receipts"].includes(plannedModule) && <GoodsDocumentsView key={`${companyId}:${plannedModule}`} companyId={companyId} companyName={company?.name||"Company"} kind={plannedModule === "Delivery Notes" ? "delivery" : "receipt"} onSource={()=>{setPlannedModule("");if(plannedModule === "Delivery Notes"){setView("Sales");setSalesSection("invoices");}else{setView("Purchases");setPurchasesSection("bills");}}}/>}
                 {plannedModule === "Purchase Quotes" && <PurchaseQuotes companyId={companyId} branches={branches} accounts={accounts} onConverted={async()=>{setPlannedModule("");setView("Purchases");setPurchasesSection("orders");}}/>}
                 {plannedModule === "Inventory Write-offs" && <WriteoffsView key={companyId} companyId={companyId} accounts={accounts}/>}
-                {plannedModule && !["Customers","Suppliers","Inter Account Transfers","Expense Claims","Payslips","Late Payment Fees","Delivery Notes","Goods Receipts","Purchase Quotes","Inventory Write-offs","Customize"].includes(plannedModule) && <article className="panel planned-module-panel"><span className="status-badge">Coming soon</span><h2>{plannedModule}</h2><p>This module is planned. Entry forms, accounting rules and reports are not available yet.</p><button className="outline" onClick={() => setPlannedModule("")}>Back to {view}</button></article>}
+                {plannedModule && !liveModules.includes(plannedModule) && <article className="panel planned-module-panel"><span className="status-badge">Coming soon</span><h2>{plannedModule}</h2><p>This module is planned. Entry forms, accounting rules and reports are not available yet.</p><button className="outline" onClick={() => setPlannedModule("")}>Back to {view}</button></article>}
           {!plannedModule && <>
           {view === "Overview" && (
             <Overview
