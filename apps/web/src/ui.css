@@ -1,0 +1,149 @@
+/* ==========================================================================
+   Shared UI layer (loaded after styles.css).
+   One look for every category page: popups, forms, buttons, tables, status.
+   Colour palette is unchanged (navy / blue / green / orange / purple).
+   ========================================================================== */
+
+/* ---------- Buttons: same size and shape everywhere inside the app ---------- */
+.content .primary,.content .outline,.modal .primary,.modal .outline{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:8px 16px;font-size:13px;font-weight:700;border-radius:10px;line-height:1.2;white-space:nowrap}
+.content .primary,.modal .primary{border:0;background:linear-gradient(135deg,#1677ff,#075dcc);color:#fff;box-shadow:0 6px 16px rgba(17,105,220,.2)}
+.content .outline,.modal .outline{border:1px solid #d5e2ec;background:#fff;color:#1768b1}
+.content .outline:hover:not(:disabled),.modal .outline:hover:not(:disabled){background:#f0f7fe;border-color:#aed2f2}
+.content .primary:disabled,.content .outline:disabled,.modal .primary:disabled,.modal .outline:disabled{opacity:.55;cursor:not-allowed;transform:none;box-shadow:none}
+.content .small-button{padding:8px 16px}
+.panel-head>.toolbar,.panel-head>.toolbar>*{align-items:center}
+.toolbar{flex-wrap:wrap;justify-content:flex-end}
+
+/* ---------- Panel header: title on the left, actions on the right ---------- */
+.panel-head{align-items:center;flex-wrap:wrap;margin-bottom:4px}
+.panel-head h3{font-size:17px}
+.panel-head p{font-size:12px;margin:5px 0 0;max-width:68ch;line-height:1.5}
+.panel>h3{margin:0 0 4px}
+
+/* ---------- Tables: one look for grid tables and real <table>s ---------- */
+.sales-table,.inventory-table,.bank-table,.data-table,.employee-table,.payroll-table,.statement-table,.account-table{margin-top:16px;border:1px solid var(--line);border-radius:12px;background:#fff;overflow-x:auto}
+.sales-row,.purchase-row,.inventory-row,.bank-row,.statement-row,.history-row,.data-row,.employee-row,.payroll-row{font-size:13px}
+.sales-table>div:first-child,.inventory-table>div:first-child,.bank-table>div:first-child,.statement-table>div:first-child{border-top:0}
+.data-heading{background:#f7f9fb;color:#6d8294!important;font-size:10px!important;letter-spacing:.07em}
+.contacts-table{width:100%;border-collapse:collapse;font-size:13px;min-width:720px}
+.contacts-table thead th{padding:12px 14px;text-align:left;font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#6d8294;background:#f7f9fb;border-bottom:1px solid var(--line)}
+.contacts-table td{padding:13px 14px;border-bottom:1px solid #edf2f6;color:var(--ink);vertical-align:middle;line-height:1.5}
+.contacts-table tbody tr:last-child td{border-bottom:0}
+.contacts-table tbody tr:hover{background:#f7fbff}
+.contacts-table td button,.contacts-table td .outline{min-height:30px;padding:5px 11px;font-size:12px;margin:0 6px 4px 0}
+.contacts-table input,.contacts-table select{border:1px solid #d5e0e8;border-radius:8px;padding:7px 9px;min-width:80px;font-size:13px}
+.row-actions{flex-wrap:wrap}
+.row-actions button.outline,.row-actions button.invoice-action{min-height:30px;height:auto;width:auto;padding:5px 10px;font-size:12px}
+.row-actions button.danger{color:#c64747}
+.mini-empty,.empty-state{padding:44px 20px;color:#7d92a3}
+.mini-empty svg,.empty-state svg{width:34px;height:34px;margin-bottom:6px}
+.mini-empty p{margin:6px 0 12px}
+
+/* ---------- Status pills ---------- */
+.status{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;text-transform:capitalize;width:fit-content;font-style:normal;white-space:nowrap}
+.status:before{margin:0;flex:0 0 6px;width:6px;height:6px;box-shadow:none}
+.status.s-ok{background:#e6f8f1;color:#087c58}.status.s-ok:before{background:#23b783}
+.status.s-warn{background:#fff3df;color:#9a6200}.status.s-warn:before{background:#f59e0b}
+.status.s-bad{background:#fff0f0;color:#b3261e}.status.s-bad:before{background:#e5484d}
+.status.s-info{background:#eaf3ff;color:#1b5fb4}.status.s-info:before{background:#1677ff}
+
+/* ---------- Messages ---------- */
+p.alert,p.notice{margin:14px 0 0;line-height:1.5}
+.modal-body p.alert,.modal-body p.notice{margin:0 0 16px}
+
+/* ---------- List toolbar (search + count) ---------- */
+.invoice-list-toolbar{margin-top:16px}
+.invoice-list-search{min-height:40px;border-radius:10px}
+
+/* ==========================================================================
+   Modal / popup
+   ========================================================================== */
+.modal-backdrop{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(8,28,48,.55);backdrop-filter:blur(3px);animation:modalFade .16s ease-out}
+.modal{display:flex;flex-direction:column;width:100%;max-height:calc(100vh - 48px);max-height:calc(100dvh - 48px);background:#fff;border-radius:18px;box-shadow:0 30px 80px rgba(6,28,50,.35);border:1px solid rgba(255,255,255,.6);animation:modalIn .2s cubic-bezier(.2,.8,.2,1);outline:none;overflow:hidden}
+.modal-sm{max-width:460px}.modal-md{max-width:720px}.modal-lg{max-width:940px}.modal-xl{max-width:1200px}
+.modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:20px 24px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fbfdff,#f6f9fc);flex:0 0 auto}
+.modal-head h2{margin:0;font-size:19px;letter-spacing:-.02em;color:#102d43}
+.modal-head p{margin:5px 0 0;font-size:12.5px;line-height:1.5;color:var(--muted);max-width:62ch}
+.modal-close{flex:0 0 auto;display:grid;place-items:center;width:36px;height:36px;border:1px solid #dce6ee;border-radius:10px;background:#fff;color:#526b7d;transition:.15s}
+.modal-close:hover{background:#fff0f0;border-color:#f0caca;color:#c64747}
+.modal-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:20px 24px}
+
+/* Fields inside a popup: same look whichever old form class they came from */
+.modal-body label{display:grid;gap:6px;font-size:12px;font-weight:700;color:#3f5668}
+.modal-body input:not([type=checkbox]):not([type=radio]):not([type=file]),.modal-body select,.modal-body textarea{width:100%;min-width:0;min-height:40px;padding:9px 12px;border:1px solid #d5e0e8;border-radius:10px;background:#fff;color:var(--ink);font-size:14px;font-weight:500;outline:none;transition:border-color .15s,box-shadow .15s}
+.modal-body textarea{min-height:84px;resize:vertical}
+.modal-body input:focus,.modal-body select:focus,.modal-body textarea:focus{border-color:#4b9cff;box-shadow:0 0 0 4px rgba(22,119,255,.1)}
+.modal-body input:read-only:not([type=checkbox]),.modal-body input:disabled,.modal-body select:disabled{background:#f3f7fa;color:#6d8294}
+.modal-body input[type=checkbox]{width:18px;height:18px;accent-color:#1677ff}
+.modal-body label.checkbox,.modal-body label.payroll-check,.modal-body label.entry-repeat{display:flex;align-items:center;gap:9px;font-weight:600}
+.modal-body h3,.modal-body h4{margin:0 0 4px;color:#173248}
+.modal-body details{margin-top:18px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fafcfe}
+.modal-body summary{cursor:pointer;font-weight:700;color:#1768b1}
+
+/* Every old form class becomes the same clean layout */
+.modal-body form{display:block;margin:0;padding:0;background:none;border:0;border-radius:0;box-shadow:none}
+.modal-body form.inline-form,.modal-body form.product-form,.modal-body form.customer-form,.modal-body form.payroll-form,.modal-body form.bank-form,.modal-body form.branch-form,.modal-body form.member-invite,.modal-body form.entry-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start;margin:0}
+.modal-body form.entry-grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.modal-body form>.wide,.modal-body form>.form-actions,.modal-body form>h3,.modal-body form>p{grid-column:1/-1}
+.modal-body .invoice-meta,.modal-body .journal-meta,.modal-body .sales-entry-form .invoice-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:0 0 20px}
+.modal-body .invoice-lines{margin-top:4px;display:grid;gap:8px;overflow-x:auto;padding-bottom:4px}
+.modal-body .invoice-line,.modal-body .purchase-line{min-width:900px}
+.modal-body .purchase-line{min-width:1040px}
+.modal-body .invoice-line.data-heading,.modal-body .purchase-line.data-heading{padding:9px 4px;border:0;border-radius:8px;text-transform:uppercase;font-weight:800}
+.modal-body .invoice-line>button,.modal-body .purchase-line>button,.modal-body .journal-line>button{display:grid;place-items:center;width:38px;height:38px;min-height:38px;padding:0;border:0;background:transparent;color:#a45555;border-radius:9px}
+.modal-body .invoice-line>button:hover:not(:disabled),.modal-body .purchase-line>button:hover:not(:disabled),.modal-body .journal-line>button:hover:not(:disabled){background:#fff0f0}
+.modal-body .invoice-line>b,.modal-body .purchase-line>b{text-align:right;font-size:13px}
+.modal-body .text-button{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:8px 4px;font-size:13px}
+.modal-body .invoice-totals{margin:16px 0 0 auto;width:min(360px,100%);padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:#f7fafd;font-size:13px}
+.modal-body .invoice-totals .grand-total{font-size:17px}
+.modal-body .journal-lines{gap:8px}
+.modal-body .journal-line{grid-template-columns:2.4fr 1fr 1fr 38px}
+.modal-body .goods-draft-line{grid-template-columns:1fr 1.5fr .6fr auto;margin-bottom:10px}
+.modal-body .sales-table,.modal-body .account-table{margin-top:12px}
+.modal-body .contacts-table{min-width:560px}
+
+/* Sticky action bar: Save / Cancel are always visible, even in long forms */
+.modal-body .form-actions,.modal-body .sales-entry-form .sales-entry-actions{position:sticky;bottom:0;z-index:3;display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:10px;margin:22px -24px -20px;padding:14px 24px;background:#fff;border-top:1px solid var(--line);box-shadow:0 -8px 18px rgba(31,65,91,.05)}
+.modal-body .form-actions .entry-repeat{margin-right:auto}
+
+/* Details popup (read-only) */
+.modal-body .detail-print h2{font-size:18px;margin:0 0 8px}
+.modal-body .detail-print p{line-height:1.6;color:#3f5668}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+
+/* Quick entry chooser */
+.quick-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.quick-grid button{display:flex;align-items:center;gap:12px;padding:14px;text-align:left;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--ink);transition:.15s}
+.quick-grid button:hover{border-color:#9fcbf5;background:#f4f9ff;transform:translateY(-1px);box-shadow:0 8px 20px rgba(31,65,91,.08)}
+.quick-grid .qi{display:grid;place-items:center;flex:0 0 40px;width:40px;height:40px;border-radius:11px;background:#e9f3ff;color:#1677ff}
+.quick-grid .qi.green{background:#e6f8f1;color:#0e9c6d}.quick-grid .qi.orange{background:#fff3df;color:#e38a05}.quick-grid .qi.purple{background:#f1edff;color:#7555db}
+.quick-grid b{display:block;font-size:13px}.quick-grid small{display:block;margin-top:2px;font-size:11px;color:var(--muted)}
+
+@keyframes modalFade{from{opacity:0}to{opacity:1}}
+@keyframes modalIn{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.modal,.modal-backdrop{animation:none}}
+
+@media(max-width:900px){
+  .modal-body .invoice-meta,.modal-body .journal-meta,.modal-body form.entry-grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:640px){
+  .modal-backdrop{padding:0;align-items:flex-end}
+  .modal{max-width:none;height:100vh;height:100dvh;max-height:none;border-radius:0;border:0;animation:modalSheet .22s ease-out}
+  .modal-head{padding:16px 16px 12px}
+  .modal-body{padding:16px}
+  .modal-body form.inline-form,.modal-body form.product-form,.modal-body form.customer-form,.modal-body form.payroll-form,.modal-body form.bank-form,.modal-body form.branch-form,.modal-body form.member-invite,.modal-body form.entry-grid,.modal-body .invoice-meta,.modal-body .journal-meta{grid-template-columns:1fr}
+  .modal-body .form-actions,.modal-body .sales-entry-form .sales-entry-actions{margin:20px -16px -16px;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px))}
+  .modal-body .form-actions button{flex:1 1 auto}
+  .modal-body .form-actions .entry-repeat{flex-basis:100%}
+  .quick-grid{grid-template-columns:1fr}
+}
+@keyframes modalSheet{from{transform:translateY(40px);opacity:.6}to{transform:none;opacity:1}}
+@media print{.modal-backdrop{position:static;background:none;padding:0;backdrop-filter:none}.modal{box-shadow:none;max-height:none;border:0}.modal-head,.modal-actions{display:none}}
+
+/* Embedded legacy panels inside popups lose their own frame */
+.modal-body .purchase-detail,.modal-body .document-import{margin:0;padding:0;border:0;background:none;box-shadow:none}
+.modal-body .document-import-head{display:none}
+.modal-body .document-fields{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:640px){.modal-body .document-fields{grid-template-columns:1fr}}
+.modal-body .goods-draft-line.data-heading{padding:8px 4px;border:0;border-radius:8px;text-transform:uppercase;font-weight:800;margin-bottom:6px}
+.modal-body .payroll-run-form{display:grid;grid-template-columns:1fr;gap:16px;margin:0;padding:0;background:none;border:0;border-radius:0}

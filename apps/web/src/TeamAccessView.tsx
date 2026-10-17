@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { ShieldCheck, UserPlus, UserRoundCheck, X } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import "./TeamAccessView.css";
+import Modal from "./Modal";
 
 type Role = "owner" | "admin" | "accountant" | "sales" | "purchases" | "inventory" | "payroll" | "viewer";
 type Member = { user_id: string; full_name: string; email: string; role: Role; active: boolean; joined_at: string };
@@ -20,6 +21,7 @@ export default function TeamAccessView({ companyId }: { companyId: string }) {
   const [role, setRole] = useState<Exclude<Role, "owner">>("accountant");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   async function load() {
     const { data: owner } = await supabase.rpc("is_company_owner", { target_company: companyId });
@@ -41,7 +43,7 @@ export default function TeamAccessView({ companyId }: { companyId: string }) {
     e.preventDefault(); setBusy(true); setMessage("");
     const { data, error } = await supabase.rpc("invite_company_member", { target_company: companyId, target_email: email, target_role: role });
     setMessage(error?.message ?? (data === "Member added" ? "Member access activated." : "Invitation saved. They must register or sign in with this email."));
-    if (!error) { setEmail(""); await load(); }
+    if (!error) { setEmail(""); setInviteOpen(false); await load(); }
     setBusy(false);
   }
   async function save(member: Member) {
@@ -64,12 +66,11 @@ export default function TeamAccessView({ companyId }: { companyId: string }) {
 
   if (!isOwner) return <article className="panel wide access-summary"><ShieldCheck/><div><h3>Company access</h3><p>Only a company owner can invite members or change access roles.</p></div></article>;
   return <article className="panel wide team-access"><ListSearch value={query} onChange={setQuery} records={[...members,...invitations]}/>
-    <div className="panel-head"><div><h3>Team access</h3><p>Invite users and control company-level permissions</p></div><ShieldCheck className="access-icon"/></div>
-    <form className="member-invite" onSubmit={invite}>
+    <div className="panel-head"><div><h3>Team access</h3><p>Invite users and control company-level permissions</p></div><button className="primary small-button" onClick={() => { setMessage(""); setInviteOpen(true); }}><UserPlus size={16}/> Invite member</button></div>
+    {inviteOpen && <Modal onClose={() => setInviteOpen(false)} title="Invite team member" size="sm" subtitle="Existing users get access immediately; new users get access after registering with the same email." message={message}><form className="member-invite" onSubmit={invite}>
       <label>Email address<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="accountant@company.com" required/></label>
-      <label>Access role<select value={role} onChange={(e) => setRole(e.target.value as Exclude<Role, "owner">)}>{inviteRoles.map((item) => <option key={item} value={item}>{roleLabel[item]}</option>)}</select></label>
-      <button className="primary" disabled={busy}><UserPlus size={16}/>{busy ? "Saving…" : "Invite member"}</button>
-    </form>
+      <label>Access role<select value={role} onChange={(e) => setRole(e.target.value as Exclude<Role, "owner">)}>{inviteRoles.map((item) => <option key={item} value={item}>{roleLabel[item]}</option>)}</select></label><div className="form-actions wide"><button type="button" className="outline" onClick={() => setInviteOpen(false)}>Cancel</button><button className="primary" disabled={busy}><UserPlus size={16}/>{busy ? "Saving…" : "Invite member"}</button></div>
+    </form></Modal>}
     <p className="access-help">Existing users receive access immediately. New users receive access automatically after registering with the same email.</p>
     {message && <p className="form-message">{message}</p>}
     <div className="member-list">

@@ -3,6 +3,7 @@ import { ListSearch, matchesRecord, RecordView } from "./RecordTools";
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, CheckCircle2, Pencil, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import { supabase } from "./lib/supabase";
+import Modal, { statusClass } from "./Modal";
 
 type Account = {
   id: string;
@@ -212,13 +213,13 @@ export default function AccountingView({
           <div className="toolbar">
             <button
               className="outline"
-              onClick={() => { setShowAccount((v) => !v); setEditingAccountId(""); setCode(""); setName(""); }}
+              onClick={() => { setShowAccount(true); setEditingAccountId(""); setCode(""); setName(""); setMessage(""); }}
             >
-              {showAccount ? <X size={16} /> : <Plus size={16} />} {editingAccountId ? "Cancel edit" : "Add account"}
+              <Plus size={16} /> Add account
             </button>
             <button
               className="primary small-button"
-              onClick={() => setShowJournal((v) => !v)}
+              onClick={() => { setMessage(""); setShowJournal(true); }}
             >
               <BookOpen size={16} /> New journal
             </button>
@@ -229,8 +230,7 @@ export default function AccountingView({
             {message}
           </p>
         )}
-        {showAccount && (
-          <form className="inline-form" onSubmit={addAccount}>
+        {showAccount&&<Modal onClose={()=>{setShowAccount(false);setEditingAccountId("");setCode("");setName("");}} title={editingAccountId?"Edit account":"New account"} size="sm" subtitle={"Add a ledger account to the chart of accounts."} message={message}><form className="inline-form" onSubmit={addAccount}>
             <label>
               Account code
               <input
@@ -261,12 +261,9 @@ export default function AccountingView({
                 <option value="income">Income</option>
                 <option value="expense">Expense</option>
               </select>
-            </label>
-            <button className="primary">{editingAccountId ? "Update account" : "Create account"}</button>
-          </form>
-        )}
-        {showJournal && (
-          <form className="journal-form" onSubmit={postJournal}>
+            </label><div className="form-actions wide"><button type="button" className="outline" onClick={()=>{setShowAccount(false);setEditingAccountId("");setCode("");setName("");}}>Cancel</button><button className="primary">{editingAccountId ? "Update account" : "Create account"}</button></div>
+          </form></Modal>}
+        {showJournal&&<Modal onClose={()=>setShowJournal(false)} title={"New journal entry"} size="lg" subtitle={"Debits must equal credits before the entry can be posted."} message={message}><form className="journal-form" onSubmit={postJournal}>
             <div className="journal-meta">
               <label>
                 Date
@@ -391,8 +388,7 @@ export default function AccountingView({
                 {busy ? "Posting..." : "Post journal entry"}
               </button>
             </div>
-          </form>
-        )}
+          </form></Modal>}
         <div className="data-table account-table">
           <div className="data-row data-heading">
             <span>Code</span>
@@ -409,7 +405,7 @@ export default function AccountingView({
                 {a.system_account && <small className="tag">System</small>}
               </span>
               <span className="capitalize">{a.type}</span>
-              <span className="status">{a.active ? "Active" : "Inactive"}</span>
+              <span className={statusClass(a.active ? "Active" : "Inactive")}>{a.active ? "Active" : "Inactive"}</span>
               <span className="row-actions"><RecordView companyId={companyId} table="accounts" id={a.id}/>{!a.system_account && <><button title="Edit" onClick={() => editAccount(a)}><Pencil size={14}/></button><button className="danger" title="Delete" onClick={() => deleteAccount(a)}><Trash2 size={14}/></button></>}</span>
             </div>
           ))}
@@ -452,10 +448,7 @@ export default function AccountingView({
                     ),
                   )}
                 </span>
-                <span className="status">
-                  <CheckCircle2 size={14} />
-                  {e.status}
-                </span>
+                <span className={statusClass(e.status)}>{e.status}</span>
                 <span className="row-actions"><RecordView companyId={companyId} table="journal_entries" id={e.id} draft={e.status==="draft"&&!e.description?.startsWith("[Expense claim] ")} onSaved={loadEntries}/>{e.status === "posted" && <button title="Reverse entry" onClick={() => reverseEntry(e)}><RotateCcw size={14}/></button>}{e.status === "draft" && <button className="danger" title="Delete draft" onClick={async () => { if(confirm("Delete this draft journal?")){ const r=await supabase.from("journal_entries").delete().eq("id",e.id); if(r.error)setMessage(r.error.message); else loadEntries(); } }}><Trash2 size={14}/></button>}</span>
               </div>
             ))}

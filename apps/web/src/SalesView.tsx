@@ -5,6 +5,7 @@ import SalesQuotations from "./SalesQuotations";
 import SalesHistory from "./SalesHistory";
 import SalesOrders from "./SalesOrders";
 import SalesCreditNotes from "./SalesCreditNotes";
+import Modal, { statusClass } from "./Modal";
 type Branch = { id: string; name: string; active: boolean };
 type Contact = {
   id: string;
@@ -276,13 +277,13 @@ export default function SalesView({
           <div className="toolbar">
             <button
               className="outline"
-              onClick={() => setCustomerOpen((v) => !v)}
+              onClick={() => { setMessage(""); setCustomerOpen(true); }}
             >
-              {customerOpen ? <X size={16} /> : <UserPlus size={16} />} Customer
+              <UserPlus size={16} /> Customer
             </button>
             <button
               className="primary small-button"
-              onClick={() => { setInvoiceOpen((v) => !v); setEditingInvoiceId(""); setCorrectingPosted(false); setLines([blank()]); }}
+              onClick={() => { setMessage(""); setInvoiceOpen(true); setEditingInvoiceId(""); setCorrectingPosted(false); setLines([blank()]); }}
             >
               <FilePlus2 size={16} /> New invoice
             </button>
@@ -293,8 +294,7 @@ export default function SalesView({
             {message}
           </p>
         )}
-        {customerOpen && (
-          <form className="customer-form" onSubmit={addCustomer}>
+        {customerOpen&&<Modal onClose={()=>setCustomerOpen(false)} title={"New customer"} size="md" subtitle={"Customer contact and Pakistan tax registration (NTN / STRN)."} message={message}><form className="customer-form" onSubmit={addCustomer}>
             <label>
               Name
               <input
@@ -341,12 +341,9 @@ export default function SalesView({
                   setCustomer({ ...customer, strn: e.target.value })
                 }
               />
-            </label>
-            <button className="primary">Save customer</button>
-          </form>
-        )}
-        {invoiceOpen && (
-          <form className="invoice-form sales-entry-form" onSubmit={(e) => { e.preventDefault(); saveInvoice(true, addAnother); }}>
+            </label><div className="form-actions wide"><button type="button" className="outline" onClick={() => setCustomerOpen(false)}>Cancel</button><button className="primary">Save customer</button></div>
+          </form></Modal>}
+        {invoiceOpen&&<Modal onClose={()=>setInvoiceOpen(false)} title={correctingPosted?"Correct posted invoice":editingInvoiceId?"Edit invoice":"New sales invoice"} size="xl" subtitle={"Post the invoice to record the receivable, sales and GST, or save it as a draft."} message={message}><form className="invoice-form sales-entry-form" onSubmit={(e) => { e.preventDefault(); saveInvoice(true, addAnother); }}>
             <div className="invoice-meta">
               <label>
                 Customer
@@ -521,8 +518,7 @@ export default function SalesView({
                 {busy ? "Saving..." : editingInvoiceId ? "Update & post" : "Post invoice"}
               </button>
             </div>
-          </form>
-        )}{" "}
+          </form></Modal>}{" "}
         <div className="invoice-list-toolbar">
           <label className="invoice-list-search"><Search size={16}/><input type="search" aria-label="Search sales invoices" placeholder="Search invoices…" value={invoiceSearch} onChange={e => setInvoiceSearch(e.target.value)}/></label>
           <small role="status">{filteredInvoices.length} of {invoices.length} invoices</small>
@@ -555,7 +551,7 @@ export default function SalesView({
                 <span>{pkr.format(i.subtotal)}</span>
                 <span>{pkr.format(i.gst_total)}</span>
                 <b>{pkr.format(i.total)}</b>
-                <span className="status">{i.status}</span>
+                <span className={statusClass(i.status)}>{i.status}</span>
                 <span className="row-actions">
                   {["draft","posted"].includes(i.status) && <button className="outline" disabled={busy} title="Edit invoice" onClick={() => void correctInvoice(i)}><Pencil size={14}/> Edit</button>}
                   {["draft","posted"].includes(i.status) && <button className="danger invoice-action" disabled={busy} title={i.status === "draft" ? "Delete draft" : "Delete by reversing posted invoice"} onClick={() => void removeOrVoidInvoice(i)}><Trash2 size={14}/> Delete</button>}

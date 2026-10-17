@@ -46,6 +46,7 @@ import PayrollView from "./PayrollView";
 import ReportsView from "./ReportsView";
 import BankingView from "./BankingView";
 import TeamAccessView from "./TeamAccessView";
+import Modal, { statusClass } from "./Modal";
 
 type Company = {
   id: string;
@@ -427,7 +428,7 @@ function Overview({
                   <span className="code">{t.reference || "—"}</span>
                   <span>{t.description || "Journal entry"}</span>
                   <b>{money.format(Number(t.amount))}</b>
-                  <span className="status">{t.status}</span>
+                  <span className={statusClass(t.status)}>{t.status}</span>
                 </div>
               ))}
             </div>
@@ -465,7 +466,7 @@ function Accounting({ accounts }: { accounts: Account[] }) {
               {a.system_account && <small className="tag">System</small>}
             </span>
             <span className="capitalize">{a.type}</span>
-            <span className="status">{a.active ? "Active" : "Inactive"}</span>
+            <span className={statusClass(a.active ? "Active" : "Inactive")}>{a.active ? "Active" : "Inactive"}</span>
           </div>
         ))}
       </div>
@@ -489,6 +490,7 @@ function SettingsView({
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
   const [message, setMessage] = useState("");
+  const [branchOpen, setBranchOpen] = useState(false);
   async function addBranch(e: React.FormEvent) {
     e.preventDefault();
     const { error } = await supabase.from("branches").insert({
@@ -502,12 +504,13 @@ function SettingsView({
       setCode("");
       setName("");
       setCity("");
-      setMessage("Branch added.");
+      setBranchOpen(false);
+      setMessage("Branch added successfully.");
       onRefresh();
     }
   }
   return (
-    <div className={section === "branches" ? "settings-grid" : "accounting-stack"}>
+    <div className="accounting-stack">
       {section === "company" && <article className="panel">
         <div className="panel-head">
           <div>
@@ -538,14 +541,17 @@ function SettingsView({
           </div>
         </dl>
       </article>}
-      {section === "branches" && <article className="panel">
+      
+      {section === "branches" && <article className="panel wide">
         <div className="panel-head">
           <div>
-            <h3>Add branch</h3>
-            <p>Create a branch-specific accounting location</p>
+            <h3>Branches</h3>
+            <p>{branches.length} locations in this company</p>
           </div>
+          <button className="primary small-button" onClick={() => { setMessage(""); setBranchOpen(true); }}><Plus size={16} /> New branch</button>
         </div>
-        <form className="branch-form" onSubmit={addBranch}>
+        {message && <p className={/success/i.test(message) ? "notice" : "alert"}>{message}</p>}
+        {branchOpen && <Modal onClose={() => setBranchOpen(false)} title="New branch" size="sm" subtitle="Create a branch-specific accounting location." message={message}><form className="branch-form" onSubmit={addBranch}>
           <label>
             Branch code
             <input
@@ -572,18 +578,8 @@ function SettingsView({
               onChange={(e) => setCity(e.target.value)}
               placeholder="Karachi"
             />
-          </label>
-          <button className="primary">Add branch</button>
-        </form>
-        {message && <p className="form-message">{message}</p>}
-      </article>}
-      {section === "branches" && <article className="panel wide">
-        <div className="panel-head">
-          <div>
-            <h3>Branches</h3>
-            <p>{branches.length} locations in this company</p>
-          </div>
-        </div>
+          </label><div className="form-actions wide"><button type="button" className="outline" onClick={() => setBranchOpen(false)}>Cancel</button><button className="primary">Add branch</button></div>
+        </form></Modal>}
         <ListSearch value={query} onChange={setQuery} records={branches}/><div className="branch-list">
           {branches.filter(b=>matchesRecord(b,query)).map((b) => (
             <div key={b.id}>
@@ -594,7 +590,7 @@ function SettingsView({
                   {b.code} · {b.city || "City not set"}
                 </small>
               </span>
-              <em>{b.active ? "Active" : "Inactive"}</em><span className="row-actions"><RecordView companyId={company.id} table="branches" id={b.id} onSaved={onRefresh}/></span>
+              <span className={statusClass(b.active ? "Active" : "Inactive")}>{b.active ? "Active" : "Inactive"}</span><span className="row-actions"><RecordView companyId={company.id} table="branches" id={b.id} onSaved={onRefresh}/></span>
 
             </div>
           ))}
@@ -806,15 +802,9 @@ function Dashboard({
           <ChevronDown />
         </label>
         {!demo && (
-          <button className="add-company-button" onClick={() => setCompanyCreator((v) => !v)}>
-            {companyCreator ? <X size={16} /> : <Plus size={16} />} {companyCreator ? "Cancel" : "New company"}
+          <button className="add-company-button" onClick={() => { setError(""); setCompanyCreator(true); }}>
+            <Plus size={16} /> New company
           </button>
-        )}
-        {companyCreator && (
-          <form className="company-create-form" onSubmit={createAdditionalCompany}>
-            <input value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} placeholder="Company name" minLength={2} required autoFocus />
-            <button disabled={companyBusy}>{companyBusy ? "Creating..." : "Create company"}</button>
-          </form>
         )}
         <nav>
           {allowedNav.filter(([name]) => name === "Settings" ? !sidebarHidden.includes(name) : sidebarGroupVisible(sidebarHidden, sidebarGroups.find(group => group.id === name)!)).map(([name, Icon]) => (
@@ -988,6 +978,14 @@ function Dashboard({
           </>}
         </section>
       </main>
+      {companyCreator && (
+        <Modal onClose={() => setCompanyCreator(false)} title="New company" size="sm" subtitle="Each company has its own chart of accounts, branches and team." message={error}>
+          <form className="entry-grid" onSubmit={createAdditionalCompany}>
+            <label className="wide">Company name<input value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} placeholder="e.g. UltraNet Security" minLength={2} required /></label>
+            <div className="form-actions wide"><button type="button" className="outline" onClick={() => setCompanyCreator(false)}>Cancel</button><button className="primary" disabled={companyBusy}>{companyBusy ? "Creating..." : "Create company"}</button></div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Pencil, X } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import "./PurchaseBillDetails.css";
+import Modal, { statusClass } from "./Modal";
 
 type Bill = {
   bill_number: number; supplier_reference: string | null; bill_date: string; due_date: string;
@@ -51,14 +52,14 @@ export default function PurchaseBillDetails({ companyId, billId, onClose, onEdit
   const subtotal = bill?.status === "draft" ? sums.subtotal : Number(bill?.subtotal ?? 0);
   const gst = bill?.status === "draft" ? sums.gst : Number(bill?.gst_total ?? 0);
   const total = bill?.status === "draft" ? sums.total : Number(bill?.total ?? 0);
-  return <section className="purchase-detail" aria-label="Purchase bill details">
-    <div className="purchase-detail-head"><div><h3>{bill ? `BILL-${String(bill.bill_number).padStart(6, "0")}` : "Bill details"}</h3><p>Complete purchase bill and accounting review</p></div><button type="button" className="outline" onClick={onClose} aria-label="Close bill details"><X size={16}/> Close</button></div>
+  return <Modal onClose={onClose} title={bill ? `BILL-${String(bill.bill_number).padStart(6, "0")}` : "Bill details"} subtitle="Complete purchase bill and accounting review" size="xl" closeOnBackdrop><section className="purchase-detail" aria-label="Purchase bill details">
+    
     {loading && <p role="status">Loading bill details…</p>}
     {error && <p className="alert" role="alert">{error}</p>}
     {bill && !error && <>
       <div className="purchase-detail-meta">
         <div><small>Supplier</small><strong>{bill.contacts?.name ?? "—"}</strong></div>
-        <div><small>Status</small><strong>{bill.status}</strong></div>
+        <div><small>Status</small><strong><span className={statusClass(bill.status)}>{bill.status}</span></strong></div>
         <div><small>Supplier reference</small><strong>{bill.supplier_reference || "—"}</strong></div>
         <div><small>Bill date</small><strong>{bill.bill_date}</strong></div>
         <div><small>Due date</small><strong>{bill.due_date}</strong></div>
@@ -74,5 +75,5 @@ export default function PurchaseBillDetails({ companyId, billId, onClose, onEdit
       {bill.notes?.startsWith("Imported from ") && <p className="purchase-detail-hint">Original uploaded file is not stored yet. Compare this draft with your own copy before posting.</p>}
       {bill.status === "draft" && <div className="form-actions"><button type="button" className="primary small-button" onClick={onEdit}><Pencil size={15}/> Edit draft</button></div>}
     </>}
-  </section>;
+  </section></Modal>;
 }
