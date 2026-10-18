@@ -181,3 +181,18 @@ p.alert{padding:13px 16px;border:1px solid #f3c4c4;border-radius:12px;background
 /* Sidebar: planned (not yet built) items are visibly quieter than working ones */
 .sales-submenu button.is-planned{opacity:.62}
 .sales-submenu button.is-planned:hover,.sales-submenu button.is-planned.active{opacity:1}
+
+/* Company logo field */
+.logo-field{display:grid;gap:8px}
+.logo-label{font-size:12px;font-weight:700;color:#3f5668}
+.logo-row{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.logo-preview{display:grid;place-items:center;width:200px;height:84px;border:1px dashed #b9cddd;border-radius:12px;background:#f7fafd;overflow:hidden}
+.logo-preview img{max-width:100%;max-height:100%;object-fit:contain}
+.logo-preview span{font-size:12px;color:#8aa0b1}
+.logo-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;max-width:360px}
+.logo-actions small{flex-basis:100%;color:var(--muted);font-size:11.5px;line-height:1.5}
+.modal-body label.logo-upload{display:inline-flex;align-items:center;gap:7px;cursor:pointer}
+.details .company-logo{max-height:56px;max-width:220px;object-fit:contain}
+
+/* Record dialog header actions (PDF + Close) */
+.record-head-actions{display:flex;gap:8px;align-items:center}

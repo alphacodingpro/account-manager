@@ -1,4 +1,6 @@
 import { listRecords } from "./lib/listRecords";
+import PdfButton from "./PdfButton";
+import { pdfDate, pdfMoney, type PdfSpec } from "./lib/pdfExport";
 import { ListSearch, matchesRecord, RecordView } from "./RecordTools";
 import { useEffect, useMemo, useState } from "react";
 import { Eye, FilePlus2, FileSearch, Pencil, Plus, RotateCcw, Trash2, UserPlus, X } from "lucide-react";
@@ -21,6 +23,16 @@ const pkr = new Intl.NumberFormat("en-PK", { style: "currency", currency: "PKR" 
 
 export default function PurchasesView({ companyId, branches, accounts, onAccountsChanged, section = "bills" }: { companyId: string; branches: Branch[]; accounts: Account[]; onAccountsChanged: () => Promise<void>; section?: "bills" | "orders" | "returns" }) {
   const [listQuery,setListQuery]=useState("");
+  function buildListPdf(): PdfSpec {
+    const live = bills.filter((x) => x.status !== "void");
+    return {
+      title: "Purchase Bills", subtitle: `As of ${pdfDate(new Date().toISOString())}`, orientation: "landscape",
+      columns: [{ header: "Bill", width: 30 }, { header: "Date", width: 26 }, { header: "Supplier" }, { header: "Due", width: 26 }, { header: "Total", align: "right", width: 34 }, { header: "Paid", align: "right", width: 34 }, { header: "Balance", align: "right", width: 34 }, { header: "Status", width: 24 }],
+      rows: [...bills.map((x) => [`BILL-${String(x.bill_number).padStart(6, "0")}`, pdfDate(x.bill_date), x.contacts?.name ?? "-", pdfDate(x.due_date), pdfMoney(x.total), pdfMoney(x.amount_paid), pdfMoney(Math.max(0, Number(x.total) - Number(x.amount_paid))), x.status]),
+        ["Total (excluding void)", "", "", "", pdfMoney(live.reduce((n, x) => n + Number(x.total), 0)), pdfMoney(live.reduce((n, x) => n + Number(x.amount_paid), 0)), pdfMoney(live.reduce((n, x) => n + Math.max(0, Number(x.total) - Number(x.amount_paid)), 0)), ""]],
+      footnote: `${bills.length} bill${bills.length === 1 ? "" : "s"}`, filename: `Purchase-bills-${new Date().toISOString().slice(0, 10)}`,
+    };
+  }
  useEffect(()=>setListQuery(""),[companyId,section]);
  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -114,6 +126,7 @@ export default function PurchasesView({ companyId, branches, accounts, onAccount
   async function removeOrVoidBill(bill:Bill){const action=bill.status==="draft"?"delete":"void";if(!confirm(`${action==="delete"?"Delete draft":"Void posted"} bill BILL-${String(bill.bill_number).padStart(6,"0")}?`))return;const result=action==="delete"?await supabase.from("purchase_bills").delete().eq("id",bill.id).eq("status","draft"):await supabase.rpc("void_purchase_bill",{target_bill:bill.id,target_reason:"Voided by user"});if(result.error)setMessage(result.error.message);else{setMessage(action==="delete"?"Bill draft deleted successfully.":"Bill voided with a reversing journal.");await load();}}
   return <div className="accounting-stack">{section === "bills"&&<ListSearch value={listQuery} onChange={setListQuery} records={bills}/>}{section === "bills" && <article className="panel data-panel">
     <div className="panel-head"><div><h3>Purchase bills</h3><p>Suppliers, input GST, stock and payables</p></div><div className="toolbar">
+      <PdfButton label="PDF" disabled={!bills.length} build={buildListPdf} />
       <button className="outline" onClick={() => {setMessage("");setSupplierOpen(true);}}><UserPlus size={16}/> Supplier</button>
       <button className="outline" onClick={() => {setMessage("");setImportOpen(true);}}><FileSearch size={16}/> Import document</button>
       <button className="primary small-button" onClick={() => {setMessage("");setBillOpen(true);setEditingBillId("");setImportedDraft(false);setImportSource("");setDraftNotes(null);setLines([blank()]);}}><FilePlus2 size={16}/> New bill</button>

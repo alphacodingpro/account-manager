@@ -47,6 +47,8 @@ import ReportsView from "./ReportsView";
 import BankingView from "./BankingView";
 import TeamAccessView from "./TeamAccessView";
 import Modal, { statusClass, msgClass } from "./Modal";
+import { setPdfCompany } from "./lib/pdfExport";
+import CompanyProfileModal from "./CompanyProfile";
 
 type Company = {
   id: string;
@@ -56,6 +58,11 @@ type Company = {
   ntn: string | null;
   strn: string | null;
   gst_registered: boolean;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+  logo_data_url?: string | null;
 };
 type Branch = {
   id: string;
@@ -490,12 +497,16 @@ function SettingsView({
   company,
   branches,
   onRefresh,
+  onCompanyChanged,
+  canEdit,
   section,
 }: {
   section: "company" | "branches" | "team";
   company: Company;
   branches: Branch[];
   onRefresh: () => void;
+  onCompanyChanged: () => void;
+  canEdit: boolean;
 }) {
   const [query,setQuery]=useState("");
   const [code, setCode] = useState("");
@@ -503,6 +514,7 @@ function SettingsView({
   const [city, setCity] = useState("");
   const [message, setMessage] = useState("");
   const [branchOpen, setBranchOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   async function addBranch(e: React.FormEvent) {
     e.preventDefault();
     const { error } = await supabase.from("branches").insert({
@@ -527,10 +539,36 @@ function SettingsView({
         <div className="panel-head">
           <div>
             <h3>Company details</h3>
-            <p>Legal and tax identity</p>
+            <p>Legal and tax identity. This is the letterhead used on every exported PDF.</p>
           </div>
+          {canEdit && <button className="primary small-button" onClick={() => setProfileOpen(true)}>Edit details</button>}
         </div>
+        {profileOpen && <CompanyProfileModal company={company} onClose={() => setProfileOpen(false)} onSaved={onCompanyChanged} />}
         <dl className="details">
+          {company.logo_data_url && <div>
+            <dt>Logo</dt>
+            <dd><img className="company-logo" src={company.logo_data_url} alt="Company logo" /></dd>
+          </div>}
+          <div>
+            <dt>Legal name</dt>
+            <dd>{company.legal_name || "Not configured"}</dd>
+          </div>
+          <div>
+            <dt>Address</dt>
+            <dd>{company.address || "Not configured"}</dd>
+          </div>
+          <div>
+            <dt>Phone</dt>
+            <dd>{company.phone || "Not configured"}</dd>
+          </div>
+          <div>
+            <dt>Email</dt>
+            <dd>{company.email || "Not configured"}</dd>
+          </div>
+          <div>
+            <dt>Website</dt>
+            <dd>{company.website || "Not configured"}</dd>
+          </div>
           <div>
             <dt>Company</dt>
             <dd>{company.name}</dd>
@@ -690,6 +728,7 @@ function Dashboard({
     window.addEventListener("storage",refresh);return()=>window.removeEventListener("storage",refresh);
   }, [sidebarStorageKey]);
   const company = companies.find((c) => c.id === companyId);
+  useEffect(() => { setPdfCompany(company ?? null); }, [company]);
   async function loadCompanies(preferred?: string) {
     if (demo) {
       setCompanies([
@@ -719,10 +758,14 @@ function Dashboard({
     }
     setLoading(true);
     await supabase.rpc("accept_my_company_invitations");
-    const result = await supabase
+    let result: { data: Company[] | null; error: { message: string } | null } = await supabase
       .from("companies")
-      .select("id,name,legal_name,currency_code,ntn,strn,gst_registered")
+      .select("id,name,legal_name,currency_code,ntn,strn,gst_registered,address,phone,email,website,logo_data_url")
       .order("created_at");
+    if (result.error && /column|schema cache/i.test(result.error.message)) {
+      // Letterhead columns are not in this database yet: fall back so the app keeps working.
+      result = await supabase.from("companies").select("id,name,legal_name,currency_code,ntn,strn,gst_registered").order("created_at");
+    }
     if (result.error) setError(result.error.message);
     else {
       setCompanies(result.data ?? []);
@@ -976,6 +1019,8 @@ function Dashboard({
               company={company}
               branches={branches}
               onRefresh={loadCompanyData}
+              onCompanyChanged={() => void loadCompanies(companyId)}
+              canEdit={accessRole === "owner" || accessRole === "admin"}
             />
           )}{" "}
           {![

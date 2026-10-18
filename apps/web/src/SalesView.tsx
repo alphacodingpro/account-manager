@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import PdfButton from "./PdfButton";
+import { pdfDate, pdfMoney, type PdfSpec } from "./lib/pdfExport";
 import { FilePlus2, Pencil, Plus, RotateCcw, Trash2, UserPlus, Search, X } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import SalesQuotations from "./SalesQuotations";
@@ -248,6 +250,17 @@ export default function SalesView({
       setBusy(false);
     }
   }
+  function buildListPdf(): PdfSpec {
+    const list = filteredInvoices.length ? filteredInvoices : invoices;
+    const live = list.filter((i) => i.status !== "void");
+    return {
+      title: "Sales Invoices", subtitle: `As of ${pdfDate(new Date().toISOString())}`, orientation: "landscape",
+      columns: [{ header: "Invoice", width: 28 }, { header: "Date", width: 26 }, { header: "Customer" }, { header: "Due", width: 26 }, { header: "Subtotal", align: "right", width: 32 }, { header: "GST", align: "right", width: 28 }, { header: "Total", align: "right", width: 34 }, { header: "Status", width: 24 }],
+      rows: [...list.map((i) => [`INV-${String(i.invoice_number).padStart(6, "0")}`, pdfDate(i.invoice_date), i.contacts?.name ?? "-", pdfDate(i.due_date), pdfMoney(i.subtotal), pdfMoney(i.gst_total), pdfMoney(i.total), i.status]),
+        ["Total (excluding void)", "", "", "", pdfMoney(live.reduce((n, i) => n + Number(i.subtotal), 0)), pdfMoney(live.reduce((n, i) => n + Number(i.gst_total), 0)), pdfMoney(live.reduce((n, i) => n + Number(i.total), 0)), ""]],
+      footnote: `${list.length} invoice${list.length === 1 ? "" : "s"}`, filename: `Sales-invoices-${new Date().toISOString().slice(0, 10)}`,
+    };
+  }
   async function editInvoice(id: string) {
     const [header, detail] = await Promise.all([supabase.from("sales_invoices").select("customer_id,branch_id,invoice_date,due_date,reference,status").eq("id",id).single(),supabase.from("sales_invoice_lines").select("sales_order_line_id,product_id,description,quantity,unit_price,gst_rate").eq("invoice_id",id).order("id")]);
     if (header.error || detail.error) return setMessage(header.error?.message || detail.error?.message || "Unable to load draft.");
@@ -275,6 +288,7 @@ export default function SalesView({
             <p>Customers, GST invoices and receivables</p>
           </div>
           <div className="toolbar">
+            <PdfButton label="PDF" disabled={!invoices.length} build={buildListPdf} />
             <button
               className="outline"
               onClick={() => { setMessage(""); setCustomerOpen(true); }}

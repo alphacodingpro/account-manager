@@ -1,10 +1,12 @@
 import { ListSearch, matchesRecord } from "./RecordTools";
 import { useEffect, useState } from "react";
-import { BarChart3, Download, Printer } from "lucide-react";
+import { BarChart3, Download } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { downloadCsv, reportFilename, reportToCsv, type ExportRow } from "./lib/reportExport";
 import "./ReportsView.css";
 import { msgClass } from "./Modal";
+import PdfButton from "./PdfButton";
+import { getPdfCompany, pdfDate, pdfMoney, pdfPeriod, type PdfSpec } from "./lib/pdfExport";
 
 type ReportName = "Trial Balance" | "Profit & Loss" | "Balance Sheet" | "Cash Flow" | "Receivable Aging" | "Payable Aging";
 const pkr = new Intl.NumberFormat("en-PK", { style: "currency", currency: "PKR" });
@@ -44,15 +46,29 @@ export default function ReportsView({ companyId }: { companyId: string }) {
   useEffect(() => { load(); }, [companyId, report]);
   const columns = rows.length ? Object.keys(rows[0]).filter((column) => column !== "sort_order") : [];
   const period = asOfReports.includes(report) ? `As of ${to}` : `${from} to ${to}`;
+  const isMoney = (column: string, value: unknown) => typeof value === "number" || column.includes("amount") || ["debit", "credit", "balance"].includes(column);
+  const titleCase = (column: string) => column.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  function buildReportPdf(): PdfSpec {
+    const moneyColumns = columns.map((column) => rows.some((row) => isMoney(column, row[column])));
+    return {
+      title: report,
+      subtitle: asOfReports.includes(report) ? `As of ${pdfDate(to)}` : pdfPeriod(from, to),
+      columns: columns.map((column, i) => ({ header: titleCase(column), align: moneyColumns[i] ? "right" : "left" })),
+      rows: rows.map((row) => columns.map((column, i) => moneyColumns[i] && row[column] !== null && row[column] !== "" ? pdfMoney(row[column]) : String(row[column] ?? "-"))),
+      orientation: columns.length > 5 ? "landscape" : "portrait",
+      footnote: "Posted double-entry data only",
+      filename: reportFilename(report, from, to).replace(/\.csv$/i, ""),
+    };
+  }
   function exportReport() {
     downloadCsv(reportFilename(report, from, to), reportToCsv(columns, rows));
   }
 
   return <div className="accounting-stack"><article className="panel data-panel">
-    <div className="panel-head"><div><h3>Financial reports</h3><p>Posted double-entry data only</p></div><div className="report-actions"><button onClick={exportReport} disabled={!rows.length || loading} title="Download Excel-compatible CSV"><Download size={15}/>Export CSV</button><button onClick={() => window.print()} disabled={!rows.length || loading} title="Print or save as PDF"><Printer size={15}/>Print / PDF</button></div></div>
-    <div className="report-print-heading"><strong>CloudLedger PK</strong><h1>{report}</h1><p className="report-period">{period}</p></div>
+    <div className="panel-head"><div><h3>Financial reports</h3><p>Posted double-entry data only</p></div><div className="report-actions"><button onClick={exportReport} disabled={!rows.length || loading} title="Download Excel-compatible CSV"><Download size={15}/>Export CSV</button><PdfButton className="" label="Download PDF" build={buildReportPdf} disabled={!rows.length || loading} title="Download a professional PDF with your company letterhead"/></div></div>
+    <div className="report-print-heading"><strong>{getPdfCompany()?.name ?? "CloudLedger PK"}</strong><h1>{report}</h1><p className="report-period">{period}</p></div>
     <div className="report-toolbar"><select value={report} onChange={(e) => setReport(e.target.value as ReportName)}>{reportNames.map((name) => <option key={name}>{name}</option>)}</select><label>From<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} disabled={asOfReports.includes(report)}/></label><label>To / as of<input type="date" value={to} onChange={(e) => setTo(e.target.value)}/></label><button className="primary" onClick={load} disabled={loading}>{loading ? "Loading…" : "Run report"}</button></div>
-    <ListSearch value={query} onChange={setQuery}/>{query&&<p className="notice">Search filters the screen only. CSV and print contain the complete report.</p>}
+    <ListSearch value={query} onChange={setQuery}/>{query&&<p className="notice">Search filters the screen only. CSV and PDF contain the complete report.</p>}
     {message && <p className={msgClass(message)}>{message}</p>}
     {!rows.length ? <div className="mini-empty"><BarChart3/><p>{loading ? "Loading report…" : "No posted data for this report."}</p></div> : <div className="report-table" aria-label={`${report}, ${period}`}><div className="report-row data-heading" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(130px, 1fr))` }}>{columns.map((column) => <span key={column}>{column.replaceAll("_", " ")}</span>)}</div>{rows.map((row, index) => <div className={`report-row${matchesRecord(row,query)?"":" report-search-hidden"}`} key={index} style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(130px, 1fr))` }}>{columns.map((column) => <span key={column}>{typeof row[column] === "number" || (column.includes("amount") || ["debit", "credit", "balance"].includes(column)) ? pkr.format(Number(row[column] ?? 0)) : String(row[column] ?? "—")}</span>)}</div>)}</div>}
   </article></div>;

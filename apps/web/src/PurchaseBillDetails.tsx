@@ -3,6 +3,8 @@ import { Pencil, X } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import "./PurchaseBillDetails.css";
 import Modal, { statusClass } from "./Modal";
+import PdfButton from "./PdfButton";
+import { purchaseBillPdf } from "./lib/documentPdf";
 
 type Bill = {
   bill_number: number; supplier_reference: string | null; bill_date: string; due_date: string;
@@ -53,6 +55,7 @@ export default function PurchaseBillDetails({ companyId, billId, onClose, onEdit
   const gst = bill?.status === "draft" ? sums.gst : Number(bill?.gst_total ?? 0);
   const total = bill?.status === "draft" ? sums.total : Number(bill?.total ?? 0);
   return <Modal onClose={onClose} title={bill ? `BILL-${String(bill.bill_number).padStart(6, "0")}` : "Bill details"} subtitle="Complete purchase bill and accounting review" size="xl" closeOnBackdrop><section className="purchase-detail" aria-label="Purchase bill details">
+    <div className="modal-actions"><PdfButton label="Download PDF" build={() => purchaseBillPdf(billId)} disabled={!bill} /></div>
     
     {loading && <p role="status">Loading bill details…</p>}
     {error && <p className="alert" role="alert">{error}</p>}

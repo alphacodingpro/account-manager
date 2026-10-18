@@ -1,4 +1,6 @@
 import { RecordView } from "./RecordTools";
+import PdfButton from "./PdfButton";
+import { pdfMoney, pdfDate, type PdfSpec } from "./lib/pdfExport";
 import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabase";
 import Modal, { statusClass, msgClass } from "./Modal";
@@ -43,10 +45,18 @@ export function ContactsView({companyId,kind}:{companyId:string;kind:"customer"|
   }
   const terms=query.toLowerCase().trim().split(/\s+/).filter(Boolean);
   const showPayable=kind==="supplier";
+  function buildListPdf():PdfSpec{
+    const list=filtered.length&&filtered.length!==rows.length?filtered:rows;
+    const payable=(id:string)=>payables[id]?.total??0;
+    const columns=[{header:"Name"},{header:"Phone",width:30},{header:"Email",width:46},{header:"Address"},{header:"NTN / STRN",width:28},...(showPayable?[{header:"Payable",align:"right" as const,width:32},{header:"Overdue",align:"right" as const,width:28}]:[]),{header:"Status",width:18}];
+    const body=list.map(r=>[r.name,r.phone||"-",r.email||"-",r.address||"-",[r.ntn,r.strn].filter(Boolean).join(" / ")||"-",...(showPayable?[payable(r.id)>0?pdfMoney(payable(r.id)):"Nil",(payables[r.id]?.overdue??0)>0?pdfMoney(payables[r.id].overdue):"-"]:[]),r.active?"Active":"Inactive"]);
+    if(showPayable)body.push(["Total payable","","","","",pdfMoney(list.reduce((n,r)=>n+payable(r.id),0)),pdfMoney(list.reduce((n,r)=>n+(payables[r.id]?.overdue??0),0)),""]);
+    return {title:showPayable?"Supplier List & Payables":"Customer List",subtitle:`As of ${pdfDate(new Date().toISOString())}`,columns,rows:body,orientation:"landscape",footnote:`${list.length} ${kind}${list.length===1?"":"s"}`,filename:`${kind}s-${new Date().toISOString().slice(0,10)}`};
+  }
   const due=Object.values(payables);
   const totalPayable=due.reduce((n,p)=>n+p.total,0), totalOverdue=due.reduce((n,p)=>n+p.overdue,0);
   const filtered=rows.filter(r=>(!onlyDue||(payables[r.id]?.total??0)>0)&&terms.every(t=>[r.name,r.email,r.phone,r.address,r.ntn,r.strn,r.active?"active":"inactive"].join(" ").toLowerCase().includes(t)));
-  return <article className="panel data-panel"><div className="panel-head"><div><h3>{title}</h3><p>Contact details and Pakistan tax registration</p></div><button className="primary small-button" onClick={()=>{setEditing("");setForm(empty);setOpen(true);setMessage("");}}>New {kind}</button></div>
+  return <article className="panel data-panel"><div className="panel-head"><div><h3>{title}</h3><p>Contact details and Pakistan tax registration</p></div><div className="toolbar"><PdfButton label="PDF" disabled={!rows.length} build={buildListPdf}/><button className="primary small-button" onClick={()=>{setEditing("");setForm(empty);setOpen(true);setMessage("");}}>New {kind}</button></div></div>
     {message&&<p className={msgClass(message)} role="status">{message}</p>}
     {showPayable&&!loading&&<div className="payable-summary"><div><small>Total payable</small><b>{pkr.format(totalPayable)}</b><span>to {due.length} supplier{due.length===1?"":"s"}</span></div><div className={totalOverdue>0?"overdue":""}><small>Overdue</small><b>{pkr.format(totalOverdue)}</b><span>{totalOverdue>0?"past due date":"nothing overdue"}</span></div><div><small>Open bills</small><b>{due.reduce((n,p)=>n+p.open,0)}</b><span>posted, not fully paid</span></div></div>}
     {open&&<Modal onClose={()=>setOpen(false)} title={editing?`Edit ${kind}`:`New ${kind}`} size="md" subtitle={"Contact details and Pakistan tax registration (NTN / STRN)"} message={message}><form className="customer-form" onSubmit={save}>{Object.entries(form).map(([key,value])=><label key={key} className={key==="address"?"wide":undefined}>{({name:"Name",email:"Email",phone:"Phone",address:"Address",ntn:"NTN",strn:"STRN"} as Record<string,string>)[key]}<input value={value} type={key==="email"?"email":"text"} required={key==="name"} onChange={e=>setForm({...form,[key]:e.target.value})}/></label>)}<div className="form-actions wide"><button type="button" className="outline" onClick={()=>setOpen(false)}>Cancel</button><button className="primary" disabled={busy}>{busy?"Saving…":"Save"}</button></div></form></Modal>}

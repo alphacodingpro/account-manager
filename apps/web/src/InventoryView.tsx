@@ -1,4 +1,6 @@
 import { listRecords } from "./lib/listRecords";
+import PdfButton from "./PdfButton";
+import { pdfDate, pdfMoney, pdfNumber, type PdfSpec } from "./lib/pdfExport";
 import { ListSearch, matchesRecord, RecordView } from "./RecordTools";
 import InventoryRevaluations from "./InventoryRevaluations";
 import { useEffect, useState } from "react";
@@ -34,6 +36,27 @@ export default function InventoryView({ companyId, section = "products" }: { com
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
   const [stockBalances, setStockBalances] = useState<StockBalance[]>([]);
+  function buildProductsPdf(): PdfSpec {
+    const list = [...products].sort((a, b) => a.name.localeCompare(b.name));
+    const stockValue = (p: Product) => p.is_service ? 0 : Number(p.quantity_on_hand) * Number(p.average_cost);
+    return {
+      title: "Products & Services", subtitle: `As of ${pdfDate(new Date().toISOString())}`, orientation: "landscape",
+      columns: [{ header: "SKU", width: 28 }, { header: "Item" }, { header: "Unit", width: 18 }, { header: "Sale price", align: "right", width: 30 }, { header: "Purchase price", align: "right", width: 32 }, { header: "GST %", align: "right", width: 16 }, { header: "On hand", align: "right", width: 22 }, { header: "Stock value", align: "right", width: 34 }],
+      rows: [...list.map((p) => [p.sku, p.name + (p.is_service ? " (service)" : ""), p.unit, pdfNumber(p.sale_price), pdfNumber(p.purchase_price), `${pdfNumber(p.gst_rate, 0)}%`, p.is_service ? "-" : pdfNumber(p.quantity_on_hand, Number(p.quantity_on_hand) % 1 === 0 ? 0 : 3), p.is_service ? "-" : pdfNumber(stockValue(p))]),
+        ["Total stock value", "", "", "", "", "", "", pdfMoney(list.reduce((n, p) => n + stockValue(p), 0))]],
+      footnote: `${list.length} items`, filename: `Products-${new Date().toISOString().slice(0, 10)}`,
+    };
+  }
+  function buildStockPdf(): PdfSpec {
+    const list = [...stockBalances].sort((a, b) => a.warehouse_name.localeCompare(b.warehouse_name) || a.product_name.localeCompare(b.product_name));
+    return {
+      title: "Warehouse Stock Valuation", subtitle: `As of ${pdfDate(new Date().toISOString())}`, orientation: "landscape", footnote: "Weighted-average cost",
+      columns: [{ header: "Warehouse", width: 44 }, { header: "SKU", width: 28 }, { header: "Item" }, { header: "Quantity", align: "right", width: 26 }, { header: "Average cost", align: "right", width: 32 }, { header: "Stock value", align: "right", width: 36 }],
+      rows: [...list.map((r) => [r.warehouse_name, r.sku, r.product_name, pdfNumber(r.quantity, Number(r.quantity) % 1 === 0 ? 0 : 3), pdfNumber(r.average_cost), pdfNumber(r.stock_value)]),
+        ["Total stock value", "", "", "", "", pdfMoney(list.reduce((n, r) => n + Number(r.stock_value), 0))]],
+      filename: `Stock-valuation-${new Date().toISOString().slice(0, 10)}`,
+    };
+  }
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState("");
   const [message, setMessage] = useState("");
@@ -142,12 +165,15 @@ export default function InventoryView({ companyId, section = "products" }: { com
             <h3>Products and services</h3>
             <p>Sale prices, GST and current stock</p>
           </div>
+          <div className="toolbar">
+          <PdfButton label="PDF" disabled={!products.length} build={buildProductsPdf} />
           <button
             className="primary small-button"
             onClick={() => { setMessage(""); setOpen(true); setEditingId(""); setForm({sku:"",name:"",unit:"each",sale_price:"",purchase_price:"",gst_rate:"0",reorder_level:"0",is_service:false}); }}
           >
             <Plus size={16} /> New item
           </button>
+          </div>
         </div>
         {open&&<Modal onClose={()=>{setOpen(false);setEditingId("");}} title={editingId?"Edit item":"New product or service"} size="md" subtitle={"Sale price, GST and reorder level. Stock changes are recorded through purchases, sales and adjustments."} message={message}><form className="product-form" onSubmit={save}>
             <label>
@@ -278,7 +304,7 @@ export default function InventoryView({ companyId, section = "products" }: { com
         )}
       </article>}
       {section === "stock" && <article className="panel data-panel">
-        <div className="panel-head"><div><h3>Warehouse stock ledger</h3><p>Live quantity and weighted-average valuation</p></div><Package /></div>
+        <div className="panel-head"><div><h3>Warehouse stock ledger</h3><p>Live quantity and weighted-average valuation</p></div><PdfButton label="PDF" disabled={!stockBalances.length} build={buildStockPdf} /></div>
         {stockBalances.length === 0 ? <div className="mini-empty"><Package/><p>No warehouse stock movements yet.</p></div> : <div className="inventory-table inventory-stock">
           <div className="inventory-row data-heading"><span>Warehouse</span><span>SKU</span><span>Item</span><span>Quantity</span><span>Average cost</span><span>Stock value</span><span></span></div>
           {stockBalances.filter(record=>matchesRecord(record,listQuery)).map((row) => <div className="inventory-row" key={`${row.warehouse_id}-${row.product_id}`}><span><b>{row.warehouse_name}</b></span><span className="code">{row.sku}</span><span>{row.product_name}</span><span>{row.quantity}</span><span>{pkr.format(row.average_cost)}</span><span><b>{pkr.format(row.stock_value)}</b></span><span><RecordView companyId={companyId} table="products" id={row.product_id}/></span></div>)}

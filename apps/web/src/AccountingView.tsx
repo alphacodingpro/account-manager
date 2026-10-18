@@ -1,4 +1,6 @@
 import { listRecords } from "./lib/listRecords";
+import PdfButton from "./PdfButton";
+import { pdfDate, pdfMoney, type PdfSpec } from "./lib/pdfExport";
 import { ListSearch, matchesRecord, RecordView } from "./RecordTools";
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, CheckCircle2, Pencil, Plus, RotateCcw, Trash2, X } from "lucide-react";
@@ -53,6 +55,25 @@ export default function AccountingView({
   const [editingAccountId, setEditingAccountId] = useState("");
   const [showJournal, setShowJournal] = useState(false);
   const [entries, setEntries] = useState<Entry[]>([]);
+  function buildAccountsPdf(): PdfSpec {
+    const order = ["asset", "liability", "equity", "income", "expense"];
+    const list = [...accounts].sort((x, y) => order.indexOf(x.type) - order.indexOf(y.type) || x.code.localeCompare(y.code, undefined, { numeric: true }));
+    return {
+      title: "Chart of Accounts", subtitle: `As of ${pdfDate(new Date().toISOString())}`,
+      columns: [{ header: "Code", width: 24 }, { header: "Account name" }, { header: "Type", width: 30 }, { header: "Status", width: 24 }],
+      rows: list.map((a) => [a.code, a.name, a.type.charAt(0).toUpperCase() + a.type.slice(1), a.active ? "Active" : "Inactive"]),
+      footnote: `${list.length} accounts`, filename: `Chart-of-accounts-${new Date().toISOString().slice(0, 10)}`,
+    };
+  }
+  function buildJournalPdf(): PdfSpec {
+    const sum = (e: Entry, k: "debit" | "credit") => e.journal_lines.reduce((n, l) => n + Number(l[k] || 0), 0);
+    return {
+      title: "Journal History", subtitle: `Latest ${entries.length} entries`, orientation: "landscape",
+      columns: [{ header: "No.", width: 24 }, { header: "Date", width: 26 }, { header: "Reference", width: 36 }, { header: "Description" }, { header: "Debit", align: "right", width: 34 }, { header: "Credit", align: "right", width: 34 }, { header: "Status", width: 24 }],
+      rows: entries.map((e) => [`JV-${String(e.entry_number).padStart(6, "0")}`, pdfDate(e.entry_date), e.reference ?? "-", e.description ?? "-", pdfMoney(sum(e, "debit")), pdfMoney(sum(e, "credit")), e.status]),
+      filename: `Journal-history-${new Date().toISOString().slice(0, 10)}`,
+    };
+  }
   const [message, setMessage] = useState("");
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
@@ -211,6 +232,7 @@ export default function AccountingView({
             <p>Live accounts for the active company</p>
           </div>
           <div className="toolbar">
+            <PdfButton label="PDF" disabled={!accounts.length} build={buildAccountsPdf} />
             <button
               className="outline"
               onClick={() => { setShowAccount(true); setEditingAccountId(""); setCode(""); setName(""); setMessage(""); }}
@@ -417,6 +439,7 @@ export default function AccountingView({
             <h3>Journal history</h3>
             <p>Latest posted and draft entries</p>
           </div>
+          <PdfButton label="PDF" disabled={!entries.length} build={buildJournalPdf} />
         </div>
         {entries.length === 0 ? (
           <div className="mini-empty">
