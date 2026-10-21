@@ -1,0 +1,11 @@
+CloudLedger PK - Proprietary Software Licence (TEMPLATE)
+
+Copyright (c) 2026 <OWNER NAME / COMPANY>. All rights reserved.
+
+This is a placeholder. Before you give or sell this software to anyone, replace this file with
+the licence or end-user agreement you intend to use, reviewed by a lawyer. Until then:
+
+  - No one may copy, modify, host or redistribute this software without written permission
+    from the copyright holder.
+  - Third-party packages used by this project keep their own open-source licences
+    (MIT, ISC, BSD and Apache-2.0). They allow commercial use. See docs/COMMERCIAL_READINESS.md.

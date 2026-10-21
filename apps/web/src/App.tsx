@@ -49,6 +49,7 @@ import TeamAccessView from "./TeamAccessView";
 import Modal, { statusClass, msgClass } from "./Modal";
 import { setPdfCompany } from "./lib/pdfExport";
 import CompanyProfileModal from "./CompanyProfile";
+import CompanyControls from "./CompanyControls";
 
 type Company = {
   id: string;
@@ -63,6 +64,7 @@ type Company = {
   email?: string | null;
   website?: string | null;
   logo_data_url?: string | null;
+  books_locked_through?: string | null;
 };
 type Branch = {
   id: string;
@@ -147,8 +149,58 @@ const sidebarOrder: Record<string, string[]> = {
   Accounting: ["j:journal", "m:Fixed Assets", "m:Depreciation Entries", "m:Intangible Assets", "m:Amortization Entries", "m:Investments", "m:Capital Accounts", "m:Special Accounts", "m:Projects", "m:Folders"],
   Settings: ["s:company", "s:branches", "s:team", "m:Customize"],
 };
+// Modules that are not built yet stay out of the menu so customers never click a dead end. Set to true to preview them.
+const showPlannedModules = false;
 const liveModules = ["Customers", "Suppliers", "Inter Account Transfers", "Expense Claims", "Payslips", "Late Payment Fees", "Delivery Notes", "Goods Receipts", "Purchase Quotes", "Inventory Write-offs", "Customize"];
 type SidebarItem = { id: string; label: string; kind: "section" | "module" | "journal"; key: string; planned?: boolean; fixed?: boolean };
+
+const pageSubtitles: Record<string, string> = {
+  Customize: "Choose which navigation items appear in your sidebar.",
+  Overview: "A live summary of cash, receivables, payables and profit.",
+  Customers: "Your customers with their contact and tax details.",
+  Suppliers: "Your suppliers and how much you currently owe each of them.",
+  "Delivery Notes": "Goods delivered to customers, taken from posted sales invoices.",
+  "Goods Receipts": "Goods received from suppliers, taken from posted purchase bills.",
+  "Purchase Quotes": "Prices requested from suppliers. Nothing is posted until you create an order or bill.",
+  "Expense Claims": "Expenses paid by employees, approved by an owner or admin and reimbursed from cash or bank.",
+  "Inter Account Transfers": "Move money between cash and bank accounts without creating income or expense.",
+  "Inventory Write-offs": "Remove damaged, lost or expired stock and record the loss.",
+  Payslips: "Payslips generated from posted payroll runs.",
+  "Late Payment Fees": "Charge a fee on overdue invoices. The fee is a separate invoice.",
+  "Sales:invoices": "Create, post and track sales invoices. Receipts are matched to open invoices.",
+  "Sales:quotations": "Offers to customers. Approve a quotation, then convert it into an invoice.",
+  "Sales:orders": "Confirmed customer orders that can be delivered and invoiced in parts.",
+  "Sales:returns": "Credit notes for goods or services returned by customers.",
+  "Sales:history": "Every sales document and what happened to it.",
+  "Purchases:bills": "Record supplier bills. Posting creates the payable, input GST and stock.",
+  "Purchases:orders": "Orders placed with suppliers. Receive goods in parts and bill what arrived.",
+  "Purchases:returns": "Debit notes for goods or services returned to suppliers.",
+  "Banking:accounts": "Bank and cash accounts linked to your chart of accounts.",
+  "Banking:transactions": "All money received and paid, in one list.",
+  "Banking:receipts": "Money received from customers and others.",
+  "Banking:payments": "Money paid to suppliers and others.",
+  "Banking:reconciliation": "Match your bank statement against recorded transactions.",
+  "Inventory:products": "Items and services you sell or buy, with prices and GST.",
+  "Inventory:stock": "Quantity and value of stock in each warehouse.",
+  "Inventory:adjustments": "Correct stock after a count or a known difference.",
+  "Inventory:transfers": "Move stock between warehouses.",
+  "Inventory:movements": "Every stock increase and decrease with its source.",
+  "Payroll:employees": "Employees, salaries, allowances and statutory deductions.",
+  "Payroll:attendance": "One attendance record per employee per day.",
+  "Payroll:leave": "Leave requests and whether they are paid or unpaid.",
+  "Payroll:runs": "Prepare, review and post monthly payroll.",
+  "Accounting:": "Your chart of accounts and manual journal entries.",
+  "Reports:": "Financial statements from posted double-entry data.",
+  "Settings:company": "Company identity, tax numbers, logo, books lock and backup.",
+  "Settings:branches": "Branches and locations of this company.",
+  "Settings:team": "Who can use this company and what they can do.",
+  "History:": "An audit trail of who changed what, and when.",
+};
+function pageSubtitle(view: string, section: string | undefined, planned: string) {
+  if (planned && pageSubtitles[planned]) return pageSubtitles[planned];
+  if (planned) return "This module is planned and not available yet.";
+  return pageSubtitles[`${view}:${section ?? ""}`] ?? pageSubtitles[view] ?? `Manage ${view.toLowerCase()} for the active company.`;
+}
 
 type AccessRole = "owner" | "admin" | "accountant" | "sales" | "purchases" | "inventory" | "payroll" | "viewer" | "custom";
 const money = new Intl.NumberFormat("en-PK", {
@@ -591,6 +643,7 @@ function SettingsView({
           </div>
         </dl>
       </article>}
+      {section === "company" && canEdit && <CompanyControls companyId={company.id} companyName={company.name} lockedThrough={company.books_locked_through} onChanged={onCompanyChanged} />}
       
       {section === "branches" && <article className="panel wide">
         <div className="panel-head">
@@ -709,15 +762,19 @@ function Dashboard({
       return label ? [{ id: sidebarItemId(name, key), label, kind: "section", key }] : [];
     }
     if (kind === "j") return [{ id: sidebarItemId(name, "journal"), label: "Chart of Accounts & Journals", kind: "journal", key }];
+    if (!showPlannedModules && !liveModules.includes(key)) return [];
     if (name === "Purchases" && key === "Expense Claims" && accessRole === "purchases") return [];
     return [{ id: sidebarItemId(name, `planned:${key}`), label: key === "Customize" ? "Customize sidebar" : key, kind: "module", key, planned: !liveModules.includes(key), fixed: key === "Customize" }];
   });
   const sidebarGroups: SidebarGroup[] = allowedNav.map(([name]) => ({ id: name, label: name, items: groupItems(name).filter((item) => !item.fixed).map(({ id, label }) => ({ id, label })) }));
   const groupExpanded: Record<string, boolean> = { Sales: salesExpanded, Purchases: purchasesExpanded, Banking: bankingExpanded, Inventory: inventoryExpanded, Payroll: payrollExpanded, Accounting: accountingExpanded, Settings: settingsExpanded };
+  const groupSetters: Record<string, (open: boolean) => void> = { Sales: setSalesExpanded, Purchases: setPurchasesExpanded, Banking: setBankingExpanded, Inventory: setInventoryExpanded, Payroll: setPayrollExpanded, Accounting: setAccountingExpanded, Settings: setSettingsExpanded };
+  // Accordion: opening one group closes the others, so the sidebar never grows past the screen.
   const toggleGroup = (name: string, force?: boolean) => {
-    const set = ({ Sales: setSalesExpanded, Purchases: setPurchasesExpanded, Banking: setBankingExpanded, Inventory: setInventoryExpanded, Payroll: setPayrollExpanded, Accounting: setAccountingExpanded, Settings: setSettingsExpanded } as Record<string, (fn: (open: boolean) => boolean) => void>)[name];
-    set?.((open) => force ?? !open);
+    const open = force ?? !groupExpanded[name];
+    for (const [group, set] of Object.entries(groupSetters)) set(group === name ? open : false);
   };
+  useEffect(() => { if (groupSetters[view]) toggleGroup(view, true); }, [view]);
   const currentSection: Record<string, string> = { Sales: salesSection, Purchases: purchasesSection, Banking: bankingSection, Inventory: inventorySection, Payroll: payrollSection, Settings: settingsSection };
   const openSection = (name: string, section: string) => {
     const setters: Record<string, (value: never) => void> = { Sales: setSalesSection, Purchases: setPurchasesSection, Banking: setBankingSection, Inventory: setInventorySection, Payroll: setPayrollSection, Settings: setSettingsSection };
@@ -760,7 +817,7 @@ function Dashboard({
     await supabase.rpc("accept_my_company_invitations");
     let result: { data: Company[] | null; error: { message: string } | null } = await supabase
       .from("companies")
-      .select("id,name,legal_name,currency_code,ntn,strn,gst_registered,address,phone,email,website,logo_data_url")
+      .select("id,name,legal_name,currency_code,ntn,strn,gst_registered,address,phone,email,website,logo_data_url,books_locked_through")
       .order("created_at");
     if (result.error && /column|schema cache/i.test(result.error.message)) {
       // Letterhead columns are not in this database yet: fall back so the app keeps working.
@@ -883,7 +940,7 @@ function Dashboard({
           {allowedNav.filter(([name]) => name === "Settings" ? !sidebarHidden.includes(name) : sidebarGroupVisible(sidebarHidden, sidebarGroups.find(group => group.id === name)!)).map(([name, Icon]) => {
             const all = groupItems(name);
             const items = all.filter((item) => item.fixed || !sidebarHidden.includes(item.id));
-            const hasMenu = all.length > 0;
+            const hasMenu = all.length > 1;
             const open = hasMenu && groupExpanded[name];
             const submenuId = `${name.toLowerCase()}-submenu`;
             const groupActive = view === name && (!hasMenu || !open);
@@ -962,14 +1019,10 @@ function Dashboard({
               <p className="eyebrow"><span className="live-dot" /> {company?.name?.toUpperCase()}</p>
               <h1>{(plannedModule === "Customize" ? "Customize sidebar" : plannedModule) || (view === "Overview" ? "Financial overview" : view === "Sales" ? ({invoices:"Sales invoices",quotations:"Sales quotations",orders:"Sales orders",returns:"Returns & credit notes",history:"Sales history"})[salesSection] : view === "Purchases" ? ({bills:"Purchase bills",orders:"Purchase orders",returns:"Returns & supplier debit notes"})[purchasesSection] : view === "Banking" ? ({accounts:"Bank accounts",transactions:"Receipts & payments",receipts:"Receipts",payments:"Payments",reconciliation:"Bank reconciliation"})[bankingSection] : view === "Inventory" ? ({products:"Products & services",stock:"Warehouse stock",adjustments:"Stock adjustments",transfers:"Warehouse transfers",movements:"Stock movements"})[inventorySection] : view === "Payroll" ? ({employees:"Employees",attendance:"Daily attendance",leave:"Leave management",runs:"Payroll runs"})[payrollSection] : view === "Settings" ? ({company:"Company details",branches:"Branches",team:"Team & permissions"})[settingsSection] : view)}</h1>
               <p className="muted">
-                          {plannedModule === "Customize" ? "Choose which navigation items appear in your sidebar." : view === "Overview"
-                  ? "Live company data and accounting status."
-                  : "Manage " + view.toLowerCase() + " for the active company."}
+                {pageSubtitle(view, currentSection[view], plannedModule)}
               </p>
             </div>
-            {plannedModule !== "Customize" && <select className="period-select">
-              <option>Current financial year</option>
-            </select>}
+            
           </div>
           {error && <p className="alert">{error}</p>}
           {plannedModule === "Customize" && <SidebarCustomizer key={sidebarStorageKey} storageKey={sidebarStorageKey} groups={sidebarGroups} hidden={sidebarHidden} onSaved={hidden=>setSidebarPreferences({key:sidebarStorageKey,hidden})} onCancel={()=>setPlannedModule("")}/>}

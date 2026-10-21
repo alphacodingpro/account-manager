@@ -196,3 +196,45 @@ p.alert{padding:13px 16px;border:1px solid #f3c4c4;border-radius:12px;background
 
 /* Record dialog header actions (PDF + Close) */
 .record-head-actions{display:flex;gap:8px;align-items:center}
+
+/* Reports: text left, numbers right, clear total lines */
+.report-table .report-row>span:not(.num){text-align:left}
+.report-table .report-row>span.num{text-align:right}
+.report-row>span.num{text-align:right;font-variant-numeric:tabular-nums}
+.report-row.report-total{font-weight:800;background:#eef4fa;border-top:2px solid #cfdeeb}
+
+/* Settings: lock date and backup cards */
+.control-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.control-card{display:flex;gap:14px;align-items:flex-start;padding:16px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,#fff,#f8fbfe)}
+.control-card h3{margin:0 0 4px;font-size:15px}
+.control-card p{margin:0 0 12px;font-size:12.5px;line-height:1.6;color:var(--muted)}
+.control-icon{display:grid;place-items:center;flex:0 0 40px;width:40px;height:40px;border-radius:11px;background:#e9f3ff;color:#1677ff}
+@media(max-width:800px){.control-grid{grid-template-columns:1fr}}
+
+/* ---------- Consistency and mobile polish (UI audit) ---------- */
+.contacts-list td:first-child{min-width:150px;font-weight:600}
+.record-search{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;background:#fff;border:1px solid var(--line);border-radius:14px}
+.record-search label{display:flex;flex-direction:row;align-items:center;gap:12px;flex:1 1 320px;width:auto;max-width:560px;font-size:12px;font-weight:700;color:#3f5668;white-space:nowrap}
+.record-search input{flex:1;min-width:0;min-height:38px;padding:8px 12px;border:1px solid #d5e0e8;border-radius:10px;font-size:13px}
+.record-search small,.record-search span{font-size:12px;color:var(--muted)}
+.sales-table,.inventory-table,.bank-table,.data-table,.employee-table,.payroll-table,.statement-table,.account-table,.report-table{position:relative}
+
+@media(max-width:700px){
+  .panel-head{flex-direction:column;align-items:stretch;gap:12px}
+  .panel-head>.toolbar{width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;justify-content:stretch}
+  .panel-head>.toolbar>*,.panel-head>button{width:100%;justify-content:center}
+  .panel-head>.toolbar .primary,.panel-head>.toolbar .outline{width:100%}
+  .sales-table,.inventory-table,.bank-table,.data-table,.employee-table,.payroll-table,.statement-table,.account-table,.report-table{-webkit-overflow-scrolling:touch;background:linear-gradient(90deg,#fff 30%,rgba(255,255,255,0)) left/36px 100% no-repeat local,linear-gradient(270deg,#fff 30%,rgba(255,255,255,0)) right/36px 100% no-repeat local,linear-gradient(90deg,rgba(31,65,91,.12),rgba(31,65,91,0)) left/12px 100% no-repeat scroll,linear-gradient(270deg,rgba(31,65,91,.12),rgba(31,65,91,0)) right/12px 100% no-repeat scroll,#fff}
+  .record-search label{flex-basis:100%;max-width:none}
+}
+@media(max-width:640px){
+  .modal-body .sales-entry-form .invoice-meta,.modal-body .invoice-form .invoice-meta{grid-template-columns:1fr}
+  .modal-body>form.invoice-form,.modal-body>form.sales-entry-form{min-height:100%;display:flex;flex-direction:column}
+  .modal-body>form.invoice-form>.form-actions,.modal-body>form.sales-entry-form>.form-actions{margin-top:auto}
+  .modal-body .invoice-lines{overflow:visible}
+  .modal-body .invoice-line.data-heading,.modal-body .purchase-line.data-heading{display:none}
+  .modal-body .invoice-line,.modal-body .purchase-line{min-width:0;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#fafcfe}
+  .modal-body .invoice-line>:nth-child(1),.modal-body .invoice-line>:nth-child(2),.modal-body .purchase-line>:nth-child(1),.modal-body .purchase-line>:nth-child(2),.modal-body .purchase-line>:nth-child(3){grid-column:1/-1}
+  .modal-body .invoice-line>b,.modal-body .purchase-line>b{grid-column:span 2;align-self:center}
+}
+.modal-body .invoice-totals{margin-bottom:8px}

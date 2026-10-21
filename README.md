@@ -1,43 +1,33 @@
 # CloudLedger PK
 
-CloudLedger PK is a Pakistan-focused, multi-company cloud accounting platform. This repository contains the Phase 1 foundation: a responsive React PWA, a NestJS API, and a Supabase/PostgreSQL schema with tenant isolation.
+Cloud accounting for Pakistani businesses: double-entry books, sales and purchases with GST, inventory,
+banking, payroll, branches, team roles, audit history and professional PDF documents.
 
-## Current foundation
+- **Web app:** React + TypeScript (`apps/web`)
+- **Database and rules:** Supabase / PostgreSQL migrations (`supabase/migrations`). Every accounting rule
+  (posting, reversals, immutability, GST, stock valuation, books lock) lives here and is covered by tests.
+- **Optional services:** `services/document-ocr` (scan supplier bills), `apps/api` (health check only)
 
-- Supabase email/password authentication
-- Multi-company and multi-branch data model
-- Owner/accountant/custom-role membership model
-- Double-entry journal schema and posting validation
-- Company dashboard shell with responsive navigation
-- Pakistan-ready company settings (PKR, NTN, STRN, GST registration)
-- Row Level Security policies and immutable posted journal entries
-- Render deployment blueprint
+## What it does
+Sales quotations, orders, delivery notes, invoices, credit notes, late fees; purchase quotes, orders, goods receipts,
+bills, debit notes, expense claims; bank and cash accounts, receipts, payments, transfers, reconciliation;
+inventory with weighted-average valuation, warehouses, adjustments, write-offs; payroll with attendance and leave;
+chart of accounts and journals; Trial Balance, Profit & Loss, Balance Sheet, Cash Flow, aging and GST summary;
+books lock date; full data backup; PDF export of every document and report with your company letterhead.
 
-## Local setup
+## Run it locally
+    npm install
+    cp apps/web/.env.example apps/web/.env       # add your Supabase URL and anon key
+    npm run dev -w @cloudledger/web
 
-1. Install Node.js 20+ and run `npm install`.
-2. Copy `apps/web/.env.example` to `apps/web/.env` and add Supabase values.
-3. Copy `apps/api/.env.example` to `apps/api/.env` and add server values.
-4. Run `supabase/migrations/0001_initial.sql` in the Supabase SQL editor.
-5. Start both apps with `npm run dev`.
+You need a Supabase project with **all** migrations applied (`supabase db push`). See `docs/DEPLOYMENT.md`.
 
-Web: `http://localhost:5173`  
-API: `http://localhost:3000/api/health`
+## Quality checks
+    npm test            # database rules (full migration chain on PostgreSQL), PDF, reports, UI helpers
+    npm run build -w @cloudledger/web
 
-## Safety
-
-Never commit Supabase service-role keys. The browser only uses the publishable/anon key. Financial posting is enforced through the API and PostgreSQL functions.
-
-## Roadmap
-
-See [docs/ROADMAP.md](docs/ROADMAP.md).
-
-## Automatic Supabase migrations
-
-GitHub Actions can apply new migrations after the repository secrets are configured. Run the `Baseline Supabase migrations` workflow once after manually applying migrations 0001–0005. Future files pushed under `supabase/migrations/` are deployed automatically by `Deploy Supabase migrations`.
-
-Required GitHub Actions secrets:
-
-- `SUPABASE_ACCESS_TOKEN`
-- `SUPABASE_PROJECT_ID`
-- `SUPABASE_DB_PASSWORD`
+## Documents
+- `docs/DEPLOYMENT.md` - production setup, backups, upgrades
+- `docs/COMMERCIAL_READINESS.md` - what to decide and finish before selling to customers
+- `docs/MANAGER_PARITY.md` - feature comparison with Manager.io and the roadmap
+- `docs/ROADMAP.md` - phase plan

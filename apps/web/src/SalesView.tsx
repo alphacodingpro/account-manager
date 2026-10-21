@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { RecordView } from "./RecordTools";
+import { salesInvoicePdf } from "./lib/documentPdf";
 import PdfButton from "./PdfButton";
 import { pdfDate, pdfMoney, type PdfSpec } from "./lib/pdfExport";
 import { FilePlus2, Pencil, Plus, RotateCcw, Trash2, UserPlus, Search, X } from "lucide-react";
@@ -455,6 +457,8 @@ export default function SalesView({
                     </select>
                     <input
                       value={l.description}
+                      placeholder="Description"
+                      aria-label="Description"
                       onChange={(e) =>
                         change(index, "description", e.target.value)
                       }
@@ -464,6 +468,8 @@ export default function SalesView({
                       type="number"
                       min="0.001"
                       step="0.001"
+                      placeholder="Qty"
+                      aria-label="Quantity"
                       value={l.quantity}
                       onChange={(e) =>
                         change(index, "quantity", e.target.value)
@@ -473,6 +479,8 @@ export default function SalesView({
                       type="number"
                       min="0"
                       step="0.01"
+                      placeholder="Unit price"
+                      aria-label="Unit price"
                       value={l.unitPrice}
                       onChange={(e) =>
                         change(index, "unitPrice", e.target.value)
@@ -483,6 +491,8 @@ export default function SalesView({
                       min="0"
                       max="100"
                       step="0.01"
+                      placeholder="GST %"
+                      aria-label="GST percent"
                       value={l.gstRate}
                       onChange={(e) => change(index, "gstRate", e.target.value)}
                     />
@@ -567,6 +577,8 @@ export default function SalesView({
                 <b>{pkr.format(i.total)}</b>
                 <span className={statusClass(i.status)}>{i.status}</span>
                 <span className="row-actions">
+                  <RecordView companyId={companyId} table="sales_invoices" id={i.id} />
+                  <PdfButton label="PDF" className="outline invoice-action" build={() => salesInvoicePdf(i.id)} />
                   {["draft","posted"].includes(i.status) && <button className="outline" disabled={busy} title="Edit invoice" onClick={() => void correctInvoice(i)}><Pencil size={14}/> Edit</button>}
                   {["draft","posted"].includes(i.status) && <button className="danger invoice-action" disabled={busy} title={i.status === "draft" ? "Delete draft" : "Delete by reversing posted invoice"} onClick={() => void removeOrVoidInvoice(i)}><Trash2 size={14}/> Delete</button>}
                   {i.status === "paid" && <small>Reverse receipt before editing</small>}
