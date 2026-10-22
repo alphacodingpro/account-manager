@@ -238,3 +238,13 @@ p.alert{padding:13px 16px;border:1px solid #f3c4c4;border-radius:12px;background
   .modal-body .invoice-line>b,.modal-body .purchase-line>b{grid-column:span 2;align-self:center}
 }
 .modal-body .invoice-totals{margin-bottom:8px}
+
+/* Statement of account */
+.statement-filters{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px}
+.statement-filters label{min-width:170px}
+.statement-opening td{background:#f7fafd;color:#526b7d;font-style:italic}
+.statement-total{margin:14px 0 0;text-align:right;font-size:15px;color:#173248}
+.statement-total b{font-size:18px}
+.modal-body form.statement-filters{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px;margin:0 0 14px}
+.modal-body form.statement-filters label{flex:0 1 190px}
+.modal-body form.statement-filters .primary,.modal-body form.statement-filters .outline{flex:0 0 auto}

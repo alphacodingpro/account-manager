@@ -12,7 +12,7 @@ banking, payroll, branches, team roles, audit history and professional PDF docum
 Sales quotations, orders, delivery notes, invoices, credit notes, late fees; purchase quotes, orders, goods receipts,
 bills, debit notes, expense claims; bank and cash accounts, receipts, payments, transfers, reconciliation;
 inventory with weighted-average valuation, warehouses, adjustments, write-offs; payroll with attendance and leave;
-chart of accounts and journals; Trial Balance, Profit & Loss, Balance Sheet, Cash Flow, aging and GST summary;
+chart of accounts and journals; Trial Balance, Profit & Loss, Balance Sheet, Cash Flow, aging, GST summary and General Ledger; customer and supplier statements;
 books lock date; full data backup; PDF export of every document and report with your company letterhead.
 
 ## Run it locally

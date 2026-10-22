@@ -78,6 +78,25 @@ assert.equal(gst.reduce((n,r)=>n+Number(r.output_gst),0),expOut);assert.equal(gs
 assert.equal(gst.reduce((n,r)=>n+Number(r.net_gst_payable),0),expOut-expIn);
 await as(u2);await assert.rejects(q('select * from get_gst_summary($1,$2,$3)',[A.c,'2026-01-01','2026-12-31']),/Access denied/);await as(u1);
 
+// --- customer / supplier statements and general ledger
+const stmt=async(contact,from='2026-01-01',to='2026-12-31')=>q('select * from get_contact_statement($1,$2,$3,$4) order by line_no',[A.c,contact,from,to]);
+const cs=await stmt(A.cust);
+assert.equal(cs[0].doc_type,'Opening balance');assert.ok(cs.length>=3);
+const dueNow=Number((await q("select coalesce(sum(total-amount_paid),0) t from sales_invoices where company_id=$1 and customer_id=$2 and status not in ('draft','void')",[A.c,A.cust]))[0].t);
+assert.equal(Number(cs.at(-1).balance),dueNow,'closing balance equals what the customer still owes');
+const opening=await stmt(A.cust,'2026-10-07','2026-12-31');
+assert.ok(Number(opening[0].balance)>0,'opening balance carries earlier invoices');
+const ss=await stmt(A.supp);assert.ok(ss.some(r=>r.doc_type==='Bill'));
+assert.equal(Number(ss.at(-1).balance),Number((await q("select coalesce(sum(total-amount_paid),0) t from purchase_bills where company_id=$1 and status not in ('draft','void')",[A.c]))[0].t));
+await as(u2);await assert.rejects(stmt(A.cust),/Access denied/);await as(u1);
+const gl=await q('select * from get_account_ledger($1,$2,$3)',[A.c,'2026-01-01','2026-12-31']);
+assert.equal(gl.reduce((n,r)=>n+Number(r.debit),0),gl.reduce((n,r)=>n+Number(r.credit),0),'general ledger debits equal credits');
+const lastBal=code=>Number(gl.filter(r=>r.account_code===code).at(-1).balance);
+const tbRow=(await q('select * from get_trial_balance($1,null,$2)',[A.c,'2026-12-31'])).find(r=>r.account_code==='1100');
+assert.equal(lastBal('1100'),Number(tbRow.debit)-Number(tbRow.credit),'ledger closing balance equals trial balance');
+const oneAcct=(await q("select id from accounts where company_id=$1 and code='1100'",[A.c]))[0].id;
+assert.ok((await q('select * from get_account_ledger($1,$2,$3,$4)',[A.c,'2026-01-01','2026-12-31',oneAcct])).every(r=>r.account_code==='1100'));
+
 // --- backup export
 const dump=(await q('select export_company_data($1) d',[A.c]))[0].d;
 assert.equal(dump.format,'cloudledger-backup-v1');
