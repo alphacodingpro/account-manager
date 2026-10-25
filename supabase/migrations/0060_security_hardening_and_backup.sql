@@ -38,9 +38,27 @@ begin
   return result;
 end; $$;
 
-revoke execute on all functions in schema public from public,anon;
-grant execute on all functions in schema public to authenticated;
+-- Close the anonymous door without changing who else can run what:
+-- each function keeps exactly the access signed-in users already had, but it is now granted to them
+-- directly instead of through PUBLIC, and signed-out visitors (anon) lose it. Trigger functions never
+-- need execute rights at run time, so they are closed to everyone except their owner.
+do $$
+declare f record;
+begin
+  for f in
+    select p.oid::regprocedure as sig,
+           has_function_privilege('authenticated',p.oid,'execute') as signed_in_ok,
+           p.prorettype='trigger'::regtype as is_trigger
+    from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+    where n.nspname='public' and p.prokind='f'
+  loop
+    if f.signed_in_ok and not f.is_trigger then
+      execute format('grant execute on function %s to authenticated',f.sig);
+    end if;
+    execute format('revoke execute on function %s from public,anon',f.sig);
+    if f.is_trigger then execute format('revoke execute on function %s from authenticated',f.sig); end if;
+  end loop;
+end $$;
 alter default privileges in schema public revoke execute on functions from public,anon;
-alter default privileges in schema public grant execute on functions to authenticated;
 
 commit;
