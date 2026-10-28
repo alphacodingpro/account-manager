@@ -248,3 +248,100 @@ p.alert{padding:13px 16px;border:1px solid #f3c4c4;border-radius:12px;background
 .modal-body form.statement-filters{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px;margin:0 0 14px}
 .modal-body form.statement-filters label{flex:0 1 190px}
 .modal-body form.statement-filters .primary,.modal-body form.statement-filters .outline{flex:0 0 auto}
+
+/* ---------- Row actions: View stays visible, everything else lives in the "..." menu ---------- */
+.row-actions{display:inline-flex;align-items:center;gap:6px;flex-wrap:nowrap;justify-content:flex-end}
+.row-actions>button,.row-actions>.row-more{flex:0 0 auto}
+.row-actions .row-more{display:inline-grid;place-items:center;width:32px;min-width:32px;height:32px;padding:0;border:1px solid #d5e2ec;border-radius:9px;background:#fff;color:#526b7d;min-height:32px}
+.row-actions .row-more:hover,.row-actions .row-more[aria-expanded="true"]{background:#eef5fc;border-color:#aed2f2;color:#1768b1}
+.row-menu{position:fixed;left:-9999px;top:0;z-index:900;visibility:hidden;min-width:190px;max-width:280px;padding:6px;display:grid;gap:2px;background:#fff;border:1px solid #d9e4ec;border-radius:12px;box-shadow:0 18px 44px rgba(8,28,48,.22)}
+.row-menu.open{left:auto;visibility:visible;animation:menuIn .12s ease-out}
+@keyframes menuIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.row-menu button,.row-menu .outline,.row-menu .primary,.row-menu .small-button,.row-menu .invoice-action,.row-menu .danger{display:flex;align-items:center;justify-content:flex-start;gap:9px;width:100%;height:auto;min-height:36px;padding:8px 12px;border:0;border-radius:8px;background:transparent;box-shadow:none;color:#173248;font-size:13px;font-weight:600;text-align:left;white-space:nowrap}
+.row-menu button:hover:not(:disabled){background:#eef5fc;color:#1768b1}
+.row-menu button:disabled{opacity:.5;cursor:not-allowed}
+.row-menu button[data-icon-only="true"]::after{content:attr(title);font-weight:600}
+.row-menu button.danger,.row-menu button.danger-outline{color:#c64747}
+.row-menu button.danger:hover:not(:disabled),.row-menu button.danger-outline:hover:not(:disabled){background:#fff1f1;color:#b3261e}
+.row-menu svg{flex:0 0 auto}
+@media(prefers-reduced-motion:reduce){.row-menu.open{animation:none}}
+
+/* ---------- Table layouts that fit the screen (actions are now small) ---------- */
+.content .sales-table .sales-row:has(>:nth-child(8):last-child),.content .sales-table .purchase-row:has(>:nth-child(8):last-child){grid-template-columns:minmax(92px,.95fr) 86px minmax(110px,1.5fr) minmax(70px,.8fr) minmax(70px,.8fr) minmax(90px,.95fr) 86px 96px;min-width:0;gap:8px}
+.content .bank-table .bank-row:has(>:nth-child(9):last-child){grid-template-columns:84px 84px 68px minmax(100px,1.3fr) minmax(90px,1fr) minmax(80px,1fr) minmax(92px,1fr) 78px 96px;min-width:0;gap:8px}
+.content .inventory-table:has(.row-actions) .inventory-row:has(>:nth-child(7):last-child){grid-template-columns:96px minmax(130px,2fr) 70px 100px 100px 84px 96px;min-width:0;gap:8px}
+.content .employee-table .employee-row:has(>:nth-child(6):last-child){grid-template-columns:72px minmax(130px,1.6fr) minmax(100px,1fr) 100px 84px 96px;min-width:0;gap:8px}
+.content .payroll-table .payroll-row:has(>:nth-child(7):last-child){grid-template-columns:minmax(150px,1.6fr) repeat(4,minmax(78px,1fr)) 80px 96px;min-width:0;gap:8px}
+.content .data-table .data-row:has(>:nth-child(7):last-child),.content .data-table .history-row:has(>:nth-child(7):last-child){grid-template-columns:84px 84px minmax(70px,1fr) minmax(100px,1.6fr) minmax(80px,1fr) 76px 96px;min-width:0;gap:8px}
+.sales-row>span,.purchase-row>span,.bank-row>span,.inventory-row>span,.employee-row>span,.payroll-row>span,.data-row>span,.history-row>span{min-width:0;overflow-wrap:anywhere}
+
+/* The actions column stays pinned to the right edge, so it is visible even when a table must scroll */
+.sales-row>:last-child,.purchase-row>:last-child,.bank-row>:last-child,.inventory-row>:last-child,.employee-row>:last-child,.payroll-row>:last-child,.data-row>:last-child,.history-row>:last-child{position:sticky;right:0;z-index:2;display:flex;align-items:center;justify-content:flex-end;background:#fff}
+.sales-row.data-heading>:last-child,.purchase-row.data-heading>:last-child,.bank-row.data-heading>:last-child,.inventory-row.data-heading>:last-child,.employee-row.data-heading>:last-child,.payroll-row.data-heading>:last-child,.data-row.data-heading>:last-child,.history-row.data-heading>:last-child{background:#f7f9fb}
+.sales-row:hover>:last-child,.purchase-row:hover>:last-child,.bank-row:hover>:last-child,.inventory-row:hover>:last-child,.employee-row:hover>:last-child,.payroll-row:hover>:last-child,.data-row:hover>:last-child,.history-row:hover>:last-child{background:#f7fbff}
+.contacts-table th:last-child,.contacts-table td:last-child{position:sticky;right:0;background:#fff;text-align:right}
+.contacts-table thead th:last-child{background:#f7f9fb}
+.contacts-table tbody tr:hover td:last-child{background:#f7fbff}
+.row-actions .status{margin-right:4px}
+
+/* ---------- Guided tour ---------- */
+.tour-root{position:fixed;inset:0;z-index:2000}
+.tour-block{position:fixed;inset:0;background:transparent;cursor:default}
+.tour-dim{position:fixed;inset:0;background:rgba(8,28,48,.66);backdrop-filter:blur(2px)}
+.tour-spot{position:fixed;border-radius:14px;box-shadow:0 0 0 9999px rgba(8,28,48,.64),0 0 0 3px #4b9cff,0 0 24px 4px rgba(75,156,255,.55);pointer-events:none;transition:top .28s ease,left .28s ease,width .28s ease,height .28s ease}
+.tour-card{position:fixed;z-index:1;display:flex;flex-direction:column;gap:8px;padding:20px 22px 16px;background:#fff;border-radius:18px;box-shadow:0 30px 80px rgba(6,28,50,.45);border:1px solid rgba(255,255,255,.7);transition:opacity .15s ease}
+.tour-card h2{margin:2px 0 0;font-size:19px;letter-spacing:-.02em;color:#102d43;padding-right:28px}
+.tour-count{font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#1768b1}
+.tour-body{font-size:14px;line-height:1.65;color:#3f5668}
+.tour-body p{margin:0 0 8px}
+.tour-body ul{margin:6px 0 4px;padding-left:18px;display:grid;gap:4px}
+.tour-body b{color:#173248}
+.tour-x{position:absolute;top:14px;right:14px;display:grid;place-items:center;width:30px;height:30px;border:1px solid #dce6ee;border-radius:9px;background:#fff;color:#526b7d}
+.tour-x:hover{background:#fff0f0;border-color:#f0caca;color:#c64747}
+.tour-progress{height:4px;margin:8px 0 2px;border-radius:99px;background:#e6eef5;overflow:hidden}
+.tour-progress i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#1677ff,#4bb0ff);transition:width .25s ease}
+.tour-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:6px}
+.tour-actions>span{display:flex;gap:8px}
+.tour-skip{border:0;background:transparent;color:#6d8294;font-size:13px;font-weight:600;padding:8px 4px}
+.tour-skip:hover{color:#c64747}
+.tour-card .primary,.tour-card .outline{display:inline-flex;align-items:center;gap:6px;min-height:38px;padding:8px 16px;font-size:13px;font-weight:700;border-radius:10px}
+.tour-card .primary{border:0;background:linear-gradient(135deg,#1677ff,#075dcc);color:#fff;box-shadow:0 6px 16px rgba(17,105,220,.25)}
+.tour-card .outline{border:1px solid #d5e2ec;background:#fff;color:#1768b1}
+@media(prefers-reduced-motion:reduce){.tour-spot,.tour-progress i,.tour-card{transition:none}}
+@media(max-width:700px){.tour-card{padding:18px 18px 14px}.tour-card h2{font-size:17px}.tour-body{font-size:13.5px}}
+
+/* Sidebar tour button */
+.sidebar-tour-button{display:flex;align-items:center;gap:9px;flex-shrink:0;margin:0 16px 0;padding:10px 12px;border:1px dashed rgba(255,255,255,.28);border-radius:11px;background:transparent;color:#cfe0ef;font-size:12px;font-weight:600}
+.sidebar-tour-button:hover{background:rgba(255,255,255,.08);color:#fff}
+
+/* Getting-started checklist on the dashboard */
+.getting-started{margin-bottom:16px;padding:20px 22px;border:1px solid #cfe2f6;border-radius:18px;background:linear-gradient(135deg,#f3f9ff,#ffffff)}
+.getting-started header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.getting-started h3{margin:0 0 4px;font-size:17px;color:#102d43}
+.getting-started p{margin:0;font-size:13px;color:var(--muted)}
+.gs-bar{height:6px;margin:14px 0 6px;border-radius:99px;background:#dfeaf5;overflow:hidden}
+.gs-bar i{display:block;height:100%;background:linear-gradient(90deg,#1677ff,#23b783);border-radius:99px;transition:width .3s}
+.gs-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-top:12px}
+.gs-item{display:flex;gap:11px;align-items:flex-start;padding:12px;border:1px solid var(--line);border-radius:13px;background:#fff}
+.gs-item.done{background:#f1fbf6;border-color:#c5ecd9}
+.gs-check{display:grid;place-items:center;flex:0 0 24px;width:24px;height:24px;border-radius:50%;border:2px solid #b9cddd;color:#fff;font-size:13px}
+.gs-item.done .gs-check{background:#23b783;border-color:#23b783}
+.gs-item b{display:block;font-size:13px;color:#173248}
+.gs-item small{display:block;margin:2px 0 8px;font-size:12px;line-height:1.5;color:var(--muted)}
+.gs-item .outline{min-height:30px;padding:5px 12px;font-size:12px}
+.gs-dismiss{border:0;background:transparent;color:#6d8294;font-size:12px;font-weight:600}
+
+/* Page finder (header) */
+.page-finder{position:relative}
+.finder-list{position:absolute;top:calc(100% + 8px);left:0;right:0;z-index:300;margin:0;padding:6px;list-style:none;background:#fff;border:1px solid #d9e4ec;border-radius:14px;box-shadow:0 20px 50px rgba(8,28,48,.2)}
+.finder-list li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border-radius:9px;cursor:pointer;color:#173248}
+.finder-list li.active{background:#eaf3ff}
+.finder-list li b{font-size:13.5px}
+.finder-list li small{margin-left:8px;font-size:12px;color:#6d8294}
+.finder-list .finder-empty{color:#6d8294;cursor:default;font-size:13px}
+/* Notifications */
+.bell-wrap{position:relative}
+.bell-panel{position:absolute;top:calc(100% + 10px);right:0;z-index:300;width:290px;padding:14px;background:#fff;border:1px solid #d9e4ec;border-radius:14px;box-shadow:0 20px 50px rgba(8,28,48,.2);display:grid;gap:10px}
+.bell-panel h4{margin:0;font-size:13px;color:#173248}
+.bell-panel p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.5}
+.bell-panel .outline{min-height:34px;padding:6px 12px;font-size:12.5px;justify-content:flex-start}

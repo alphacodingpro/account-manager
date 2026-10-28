@@ -1,4 +1,5 @@
 import SidebarCustomizer from "./SidebarCustomizer";
+import RowActions from "./RowActions";
 import { sidebarSections, sidebarItemId, sidebarPreferenceKey, readSidebarPreferences, sidebarGroupVisible, type SidebarGroup } from "./lib/sidebarPreferences";
 import { listRecords } from "./lib/listRecords";
 import { ListSearch, matchesRecord, RecordView } from "./RecordTools";
@@ -12,30 +13,7 @@ import { TransfersView } from "./TransfersView";
 import { ContactsView } from "./ContactsView";
 import { useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import {
-  BarChart3,
-  Bell,
-  Building2,
-  ChevronDown,
-  CircleDollarSign,
-  FileText,
-  Landmark,
-  LayoutDashboard,
-  LogOut,
-  Menu,
-  Package,
-  Plus,
-  ReceiptText,
-  Search,
-  Settings,
-  ShieldCheck,
-  ShoppingCart,
-  Sparkles,
-  TrendingUp,
-  Users,
-  WalletCards,
-  X,
-} from "lucide-react";
+import { BarChart3, Bell, Building2, ChevronDown, CircleDollarSign, FileText, Landmark, LayoutDashboard, LogOut, Menu, Package, Plus, ReceiptText, Search, Settings, ShieldCheck, ShoppingCart, Sparkles, TrendingUp, Users, WalletCards, X, HelpCircle } from "lucide-react";
 import { isSupabaseConfigured, supabase } from "./lib/supabase";
 import AccountingView from "./AccountingView";
 import AccountHistory from "./AccountHistory";
@@ -50,6 +28,9 @@ import Modal, { statusClass, msgClass } from "./Modal";
 import { setPdfCompany } from "./lib/pdfExport";
 import CompanyProfileModal from "./CompanyProfile";
 import CompanyControls from "./CompanyControls";
+import Tour, { type TourStep } from "./Tour";
+import GettingStarted from "./GettingStarted";
+import PageFinder, { type FinderPage } from "./PageFinder";
 
 type Company = {
   id: string;
@@ -693,7 +674,7 @@ function SettingsView({
                   {b.code} · {b.city || "City not set"}
                 </small>
               </span>
-              <span className={statusClass(b.active ? "Active" : "Inactive")}>{b.active ? "Active" : "Inactive"}</span><span className="row-actions"><RecordView companyId={company.id} table="branches" id={b.id} onSaved={onRefresh}/></span>
+              <span className={statusClass(b.active ? "Active" : "Inactive")}>{b.active ? "Active" : "Inactive"}</span><RowActions><RecordView companyId={company.id} table="branches" id={b.id} onSaved={onRefresh}/></RowActions>
 
             </div>
           ))}
@@ -724,6 +705,9 @@ function Dashboard({
   demo?: boolean;
 }) {
   const [menu, setMenu] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  const [bellOpen, setBellOpen] = useState(false);
+  const tourKey = session?.user.id ? `cloudledger.tour.v1.${session.user.id}` : null;
   const [plannedModule, setPlannedModule] = useState("");
   const [view, setView] = useState<ViewName>("Overview");
   const [settingsExpanded, setSettingsExpanded] = useState(false);
@@ -780,12 +764,64 @@ function Dashboard({
     const setters: Record<string, (value: never) => void> = { Sales: setSalesSection, Purchases: setPurchasesSection, Banking: setBankingSection, Inventory: setInventorySection, Payroll: setPayrollSection, Settings: setSettingsSection };
     setters[name]?.(section as never);
   };
+
+  // Jump to a page by name. Used by the tour and by the dashboard checklist.
+  const goTo = (key: string) => {
+    const group = (name: string, section?: string) => { setPlannedModule(""); if (section) openSection(name, section); setView(name as ViewName); toggleGroup(name, true); setMenu(false); };
+    switch (key) {
+      case "overview": setPlannedModule(""); setView("Overview"); setMenu(false); break;
+      case "customers": setView("Sales"); setPlannedModule("Customers"); toggleGroup("Sales", true); setMenu(false); break;
+      case "products": group("Inventory", "products"); break;
+      case "invoices": group("Sales", "invoices"); break;
+      case "receipts": group("Banking", "receipts"); break;
+      case "reports": setPlannedModule(""); setView("Reports"); setMenu(false); break;
+      case "settings-company": group("Settings", "company"); break;
+    }
+  };
+  const openPage = (name: string, item?: SidebarItem) => {
+    if (item?.kind === "module") { setView(name as ViewName); setPlannedModule(item.key); }
+    else { setPlannedModule(""); if (item?.kind === "section") openSection(name, item.key); setView(name as ViewName); }
+    toggleGroup(name, true); setMenu(false);
+  };
+  const finderPages: FinderPage[] = [
+    ...allowedNav.flatMap(([name]): FinderPage[] => {
+      const items = groupItems(name).filter((item) => !item.fixed);
+      if (items.length > 1) return items.map((item) => ({ label: item.label, hint: name, run: () => openPage(name, item) }));
+      return [{ label: name, hint: "", run: () => { setPlannedModule(""); setView(name as ViewName); setMenu(false); } }];
+    }),
+    ...(allowedNav.some(([name]) => name === "Reports") ? ["Trial Balance", "Profit & Loss", "Balance Sheet", "Cash Flow", "GST Summary", "General Ledger", "Receivable Aging", "Payable Aging"].map((label) => ({ label, hint: "Reports", run: () => goTo("reports") })) : []),
+  ];
+  const isPhone = () => window.innerWidth < 900;
+  const tourSteps: TourStep[] = [
+    { id: "welcome", title: "Welcome to CloudLedger PK", before: () => goTo("overview"), body: <><p>This short tour shows how your books work: where things are, how to make a sale, how money is recorded, and where the reports are.</p><p>It takes about two minutes. You can leave at any time and replay it later from <b>Take the tour</b> in the menu.</p></> },
+    { id: "company", title: "Your company", target: ".company-select", placement: "right", before: () => { if (isPhone()) setMenu(true); }, body: <p>Everything you see belongs to the <b>active company</b>: its own chart of accounts, customers, invoices and team. Use <b>New company</b> under it to keep a second business separate.</p> },
+    { id: "menu", title: "The menu works like an accountant's file", target: "aside nav", placement: "right", before: () => { if (isPhone()) setMenu(true); }, body: <><p>Work is grouped the way accounting works:</p><ul><li><b>Sales</b>: customers, quotations, invoices</li><li><b>Purchases</b>: suppliers, bills, expenses</li><li><b>Banking</b>: money received and paid</li><li><b>Inventory</b>, <b>Payroll</b>, <b>Accounting</b>, <b>Reports</b>, <b>Settings</b></li></ul><p>Click a group to open it.</p></> },
+    { id: "numbers", title: "Your numbers at a glance", target: ".dashboard-metrics, .metric-grid, .metrics", placement: "bottom", before: () => { goTo("overview"); setMenu(false); }, body: <p><b>Cash</b> is what you hold in cash and bank. <b>Receivables</b> is what customers owe you. <b>Payables</b> is what you owe suppliers. <b>Net profit</b> is income minus expenses. They update as soon as you post a document.</p> },
+    { id: "customers", title: "Start with your customers", target: ".panel-head .primary", placement: "bottom", before: () => { goTo("customers"); setMenu(false); }, body: <p>Add each customer once, with phone, address and NTN/STRN. Suppliers work the same way under <b>Purchases</b>. Invoices then carry the right tax details automatically.</p> },
+    { id: "invoice", title: "Create an invoice", target: ".panel-head .primary", placement: "bottom", before: () => { goTo("invoices"); setMenu(false); }, body: <><p>A form opens in a popup. Choose the customer, add your items and GST, then:</p><ul><li><b>Save draft</b> to keep editing later</li><li><b>Post invoice</b> to record it in your books</li></ul><p>A posted invoice cannot be changed, so your records stay trustworthy. Mistakes are corrected with a reversal or credit note, and the history keeps who did what.</p></> },
+    { id: "rows", title: "Actions on every row", target: ".sales-table .row-actions", placement: "left", before: () => { goTo("invoices"); setMenu(false); }, body: <p><b>View</b> opens the full record, and from there you can download a <b>PDF</b> with your letterhead. The <b>⋯</b> menu holds edit, delete and other actions. Every list works this way.</p> },
+    { id: "receipt", title: "Record money received", target: ".panel-head .primary", placement: "bottom", before: () => { goTo("receipts"); setMenu(false); }, body: <p>When a customer pays, create a <b>receipt</b> and pick the invoice it settles. The invoice becomes paid and your receivables go down. Payments to suppliers work the same way under <b>Payments</b>.</p> },
+    { id: "reports", title: "Reports that always balance", target: ".report-toolbar", placement: "bottom", before: () => { goTo("reports"); setMenu(false); }, body: <p>Trial Balance, Profit & Loss, Balance Sheet, Cash Flow, aging, <b>GST Summary</b> and General Ledger are built from the same posted entries, so they always agree. Download any of them as a PDF or CSV.</p> },
+    { id: "settings", title: "Make it yours", target: ".details", placement: "bottom", before: () => { goTo("settings-company"); setMenu(false); }, body: <><p>Open <b>Settings, Company details</b> and add your address, phone, NTN/STRN and <b>logo</b>. They appear on every PDF you send.</p><p>Here you can also <b>lock your books</b> after a period is closed, <b>download a backup</b>, and invite your team with their own permissions.</p></> },
+    { id: "done", title: "You are ready", target: ".sidebar-tour-button", placement: "right", before: () => { goTo("overview"); if (isPhone()) setMenu(true); }, body: <p>Follow the <b>Get started</b> checklist on your dashboard for your first customer, invoice and receipt. You can replay this tour here whenever you want.</p> },
+  ];
+  const closeTour = (completed: boolean) => {
+    setTourOpen(false); setMenu(false); goTo("overview");
+    if (tourKey) { try { localStorage.setItem(tourKey, completed ? "done" : "skipped"); } catch { /* the tour just shows again next time */ } }
+  };
   useEffect(() => {
     const refresh = (event: StorageEvent) => {if(event.key === sidebarStorageKey || event.key === null) setSidebarPreferences({key:sidebarStorageKey,hidden:readSidebarPreferences(sidebarStorageKey)});};
     window.addEventListener("storage",refresh);return()=>window.removeEventListener("storage",refresh);
   }, [sidebarStorageKey]);
   const company = companies.find((c) => c.id === companyId);
   useEffect(() => { setPdfCompany(company ?? null); }, [company]);
+  // First visit: start the tour once, after the company has loaded.
+  useEffect(() => {
+    if (!tourKey || demo || !company) return;
+    try { if (localStorage.getItem(tourKey)) return; } catch { return; }
+    const timer = window.setTimeout(() => setTourOpen(true), 1400);
+    return () => window.clearTimeout(timer);
+  }, [tourKey, demo, company?.id]);
   async function loadCompanies(preferred?: string) {
     if (demo) {
       setCompanies([
@@ -975,6 +1011,7 @@ function Dashboard({
             );
           })}
         </nav>
+        <button className="sidebar-tour-button" onClick={() => { setMenu(false); goTo("overview"); setTourOpen(true); }}><HelpCircle size={16} /> Take the tour</button>
         <button className="sidebar-customize-button" onClick={()=>{setPlannedModule("Customize");setMenu(false);}}><Settings size={16}/> Customize sidebar</button>
         <div className="user">
           <div className="avatar">
@@ -1000,15 +1037,19 @@ function Dashboard({
           <button className="menu" onClick={() => setMenu(true)}>
             <Menu />
           </button>
-          <div className="search">
-            <Search />
-            <input placeholder="Search transactions, accounts..." />
-            <kbd>⌘ K</kbd>
+          <PageFinder pages={finderPages} />
+          <div className="bell-wrap">
+            <button className="icon-button notification-button" aria-label="Notifications" aria-expanded={bellOpen} onClick={() => setBellOpen((open) => !open)}>
+              <Bell />
+              {summary.overdue_count > 0 && <i />}
+            </button>
+            {bellOpen && <div className="bell-panel" role="dialog" aria-label="Notifications">
+              <h4>Needs your attention</h4>
+              {summary.overdue_count > 0
+                ? <><p>{summary.overdue_count} sales invoice{summary.overdue_count === 1 ? " is" : "s are"} past the due date.</p><button className="outline" onClick={() => { setBellOpen(false); goTo("invoices"); }}>Open sales invoices</button></>
+                : <p>You are all caught up. Nothing is overdue.</p>}
+            </div>}
           </div>
-          <button className="icon-button notification-button" aria-label="Notifications">
-            <Bell />
-            <i />
-          </button>
           {accessRole !== "viewer" && <button className="new-button" onClick={() => setView(accessRole === "sales" ? "Sales" : accessRole === "purchases" ? "Purchases" : accessRole === "inventory" ? "Inventory" : accessRole === "payroll" ? "Payroll" : "Accounting")}>
             <Sparkles size={16} /> Quick entry
           </button>}
@@ -1037,6 +1078,7 @@ function Dashboard({
                 {plannedModule === "Inventory Write-offs" && <WriteoffsView key={companyId} companyId={companyId} accounts={accounts}/>}
                 {plannedModule && !liveModules.includes(plannedModule) && <article className="panel planned-module-panel"><span className="status-badge">Coming soon</span><h2>{plannedModule}</h2><p>This module is planned. Entry forms, accounting rules and reports are not available yet.</p><button className="outline" onClick={() => setPlannedModule("")}>Back to {view}</button></article>}
           {!plannedModule && <>
+          {view === "Overview" && !demo && company && <GettingStarted companyId={company.id} hasLetterhead={!!(company.address && company.phone)} invoiceCount={summary.invoice_count} onGo={goTo} onTour={() => setTourOpen(true)} />}
           {view === "Overview" && (
             <Overview
               branches={branches}
@@ -1091,6 +1133,7 @@ function Dashboard({
           </>}
         </section>
       </main>
+      {tourOpen && <Tour steps={tourSteps} onClose={closeTour} />}
       {companyCreator && (
         <Modal onClose={() => setCompanyCreator(false)} title="New company" size="sm" subtitle="Each company has its own chart of accounts, branches and team." message={error}>
           <form className="entry-grid" onSubmit={createAdditionalCompany}>

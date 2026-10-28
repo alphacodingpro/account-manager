@@ -1,4 +1,5 @@
 import { listRecords } from "./lib/listRecords";
+import RowActions from "./RowActions";
 import PdfButton from "./PdfButton";
 import { pdfDate, pdfMoney, type PdfSpec } from "./lib/pdfExport";
 import { ListSearch, matchesRecord, RecordView } from "./RecordTools";
@@ -428,7 +429,7 @@ export default function AccountingView({
               </span>
               <span className="capitalize">{a.type}</span>
               <span className={statusClass(a.active ? "Active" : "Inactive")}>{a.active ? "Active" : "Inactive"}</span>
-              <span className="row-actions"><RecordView companyId={companyId} table="accounts" id={a.id}/>{!a.system_account && <><button title="Edit" onClick={() => editAccount(a)}><Pencil size={14}/></button><button className="danger" title="Delete" onClick={() => deleteAccount(a)}><Trash2 size={14}/></button></>}</span>
+              <RowActions><RecordView companyId={companyId} table="accounts" id={a.id}/>{!a.system_account && <><button title="Edit" onClick={() => editAccount(a)}><Pencil size={14}/></button><button className="danger" title="Delete" onClick={() => deleteAccount(a)}><Trash2 size={14}/></button></>}</RowActions>
             </div>
           ))}
         </div>
@@ -472,7 +473,7 @@ export default function AccountingView({
                   )}
                 </span>
                 <span className={statusClass(e.status)}>{e.status}</span>
-                <span className="row-actions"><RecordView companyId={companyId} table="journal_entries" id={e.id} draft={e.status==="draft"&&!e.description?.startsWith("[Expense claim] ")} onSaved={loadEntries}/>{e.status === "posted" && <button title="Reverse entry" onClick={() => reverseEntry(e)}><RotateCcw size={14}/></button>}{e.status === "draft" && <button className="danger" title="Delete draft" onClick={async () => { if(confirm("Delete this draft journal?")){ const r=await supabase.from("journal_entries").delete().eq("id",e.id); if(r.error)setMessage(r.error.message); else loadEntries(); } }}><Trash2 size={14}/></button>}</span>
+                <RowActions><RecordView companyId={companyId} table="journal_entries" id={e.id} draft={e.status==="draft"&&!e.description?.startsWith("[Expense claim] ")} onSaved={loadEntries}/>{e.status === "posted" && <button title="Reverse entry" onClick={() => reverseEntry(e)}><RotateCcw size={14}/></button>}{e.status === "draft" && <button className="danger" title="Delete draft" onClick={async () => { if(confirm("Delete this draft journal?")){ const r=await supabase.from("journal_entries").delete().eq("id",e.id); if(r.error)setMessage(r.error.message); else loadEntries(); } }}><Trash2 size={14}/></button>}</RowActions>
               </div>
             ))}
           </div>

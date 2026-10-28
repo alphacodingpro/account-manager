@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import RowActions from "./RowActions";
 import { RecordView } from "./RecordTools";
 import { salesInvoicePdf } from "./lib/documentPdf";
 import PdfButton from "./PdfButton";
@@ -576,14 +577,14 @@ export default function SalesView({
                 <span>{pkr.format(i.gst_total)}</span>
                 <b>{pkr.format(i.total)}</b>
                 <span className={statusClass(i.status)}>{i.status}</span>
-                <span className="row-actions">
+                <RowActions>
                   <RecordView companyId={companyId} table="sales_invoices" id={i.id} />
                   <PdfButton label="PDF" className="outline invoice-action" build={() => salesInvoicePdf(i.id)} />
                   {["draft","posted"].includes(i.status) && <button className="outline" disabled={busy} title="Edit invoice" onClick={() => void correctInvoice(i)}><Pencil size={14}/> Edit</button>}
                   {["draft","posted"].includes(i.status) && <button className="danger invoice-action" disabled={busy} title={i.status === "draft" ? "Delete draft" : "Delete by reversing posted invoice"} onClick={() => void removeOrVoidInvoice(i)}><Trash2 size={14}/> Delete</button>}
                   {i.status === "paid" && <small>Reverse receipt before editing</small>}
                   {i.status === "void" && <small>Reversed</small>}
-                </span>
+                </RowActions>
               </div>
             ))}
           </div>

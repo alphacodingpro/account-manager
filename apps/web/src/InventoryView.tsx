@@ -1,4 +1,5 @@
 import { listRecords } from "./lib/listRecords";
+import RowActions from "./RowActions";
 import PdfButton from "./PdfButton";
 import { pdfDate, pdfMoney, pdfNumber, type PdfSpec } from "./lib/pdfExport";
 import { ListSearch, matchesRecord, RecordView } from "./RecordTools";
@@ -297,7 +298,7 @@ export default function InventoryView({ companyId, section = "products" }: { com
                 >
                   {p.is_service ? "—" : p.quantity_on_hand}
                 </span>
-                <span className="row-actions"><RecordView companyId={companyId} table="products" id={p.id}/><button title="Edit" onClick={() => edit(p)}><Pencil size={14}/></button><button className="danger" title="Delete" onClick={() => remove(p)}><Trash2 size={14}/></button></span>
+                <RowActions><RecordView companyId={companyId} table="products" id={p.id}/><button title="Edit" onClick={() => edit(p)}><Pencil size={14}/></button><button className="danger" title="Delete" onClick={() => remove(p)}><Trash2 size={14}/></button></RowActions>
               </div>
             ))}
           </div>
